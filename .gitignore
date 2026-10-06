@@ -2,3 +2,9 @@
 ~$*.docx
 ~$*.xlsx
 .DS_Store
+
+# Mobile (Expo)
+node_modules/
+.expo/
+.env
+expo-env.d.ts
