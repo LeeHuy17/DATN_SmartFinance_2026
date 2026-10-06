@@ -1,0 +1,19 @@
+{
+  "expo": {
+    "name": "Smart Finance",
+    "slug": "smart-finance",
+    "scheme": "smartfinance",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-status-bar",
+      "expo-localization"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
