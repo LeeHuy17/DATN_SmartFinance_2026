@@ -93,9 +93,11 @@ export default function LoginScreen() {
 
           {error && <Text style={styles.error}>{error}</Text>}
 
-          <Pressable style={styles.forgot} hitSlop={8}>
-            <Text style={styles.link}>Quên mật khẩu?</Text>
-          </Pressable>
+          <Link href="/forgot-password" asChild>
+            <Pressable style={styles.forgot} hitSlop={8}>
+              <Text style={styles.link}>Quên mật khẩu?</Text>
+            </Pressable>
+          </Link>
 
           <PrimaryButton
             title="Đăng nhập"

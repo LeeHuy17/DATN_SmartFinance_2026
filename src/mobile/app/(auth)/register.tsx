@@ -13,12 +13,17 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Link, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
+import { FieldError } from '@/components/FieldError';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { TextField } from '@/components/TextField';
+import { PasswordChecklist } from '@/features/auth/components/PasswordChecklist';
+import { checkPasswordRules } from '@/features/auth/passwordRules';
+import { EmailTakenError, registerAccount } from '@/features/auth/registerApi';
 import { colors, spacing } from '@/theme';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const MIN_PASSWORD_LENGTH = 8;
+
+type FieldErrors = { fullName?: string; email?: string };
 
 export default function RegisterScreen() {
   const router = useRouter();
@@ -26,6 +31,7 @@ export default function RegisterScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const emailRef = useRef<TextInput>(null);
@@ -38,24 +44,34 @@ export default function RegisterScreen() {
     else router.replace('/login');
   };
 
-  const validate = () => {
-    if (!fullName.trim()) return 'Vui lòng nhập họ và tên.';
-    if (!EMAIL_REGEX.test(email.trim())) return 'Email không hợp lệ.';
-    if (password.length < MIN_PASSWORD_LENGTH)
-      return `Mật khẩu tối thiểu ${MIN_PASSWORD_LENGTH} ký tự.`;
-    if (password !== confirmPassword) return 'Mật khẩu nhập lại không khớp.';
-    return null;
-  };
+  const rules = checkPasswordRules(password, confirmPassword);
+  const passwordValid = rules.every((r) => r.passed);
+  const mismatch = confirmPassword.length > 0 && confirmPassword !== password;
+
+  const clearFieldError = (field: keyof FieldErrors) =>
+    setFieldErrors((prev) => (prev[field] ? { ...prev, [field]: undefined } : prev));
 
   const handleRegister = async () => {
-    const message = validate();
-    setError(message);
-    if (message) return;
+    if (!passwordValid) return;
+    const errors: FieldErrors = {};
+    if (!fullName.trim()) errors.fullName = 'Vui lòng nhập họ và tên.';
+    if (!EMAIL_REGEX.test(email.trim())) errors.email = 'Email không hợp lệ.';
+    setFieldErrors(errors);
+    setError(null);
+    if (errors.fullName || errors.email) return;
 
     setSubmitting(true);
     try {
-      // TODO: gọi API đăng ký (features/auth); trùng email thì hiển thị lỗi từ server,
-      // thành công thì signIn(token) từ useAuth() để vào ứng dụng
+      await registerAccount({
+        fullName: fullName.trim(),
+        email: email.trim().toLowerCase(),
+        password,
+      });
+      router.replace('/register-success');
+    } catch (e) {
+      if (e instanceof EmailTakenError)
+        setFieldErrors({ email: 'Email này đã được dùng cho một tài khoản khác.' });
+      else setError('Không tạo được tài khoản. Vui lòng thử lại sau.');
     } finally {
       setSubmitting(false);
     }
@@ -90,7 +106,11 @@ export default function RegisterScreen() {
             <TextField
               label="Họ và tên"
               value={fullName}
-              onChangeText={setFullName}
+              onChangeText={(text) => {
+                setFullName(text);
+                clearFieldError('fullName');
+              }}
+              error={fieldErrors.fullName}
               placeholder="Nguyễn Văn An"
               autoCapitalize="words"
               autoComplete="name"
@@ -102,7 +122,12 @@ export default function RegisterScreen() {
               ref={emailRef}
               label="Email"
               value={email}
-              onChangeText={setEmail}
+              onChangeText={(text) => {
+                setEmail(text);
+                clearFieldError('email');
+              }}
+              error={fieldErrors.email}
+              hint="Email không được trùng với tài khoản đã có."
               placeholder="ten@example.com"
               keyboardType="email-address"
               autoCapitalize="none"
@@ -116,7 +141,7 @@ export default function RegisterScreen() {
               label="Mật khẩu"
               value={password}
               onChangeText={setPassword}
-              placeholder="Tối thiểu 8 ký tự"
+              placeholder="Nhập mật khẩu"
               secureTextEntry
               autoCapitalize="none"
               autoComplete="new-password"
@@ -129,6 +154,7 @@ export default function RegisterScreen() {
               label="Nhập lại mật khẩu"
               value={confirmPassword}
               onChangeText={setConfirmPassword}
+              error={mismatch ? 'Mật khẩu nhập lại chưa khớp.' : null}
               placeholder="Nhập lại mật khẩu"
               secureTextEntry
               autoCapitalize="none"
@@ -139,18 +165,15 @@ export default function RegisterScreen() {
             />
           </View>
 
-          {error ? (
-            <Text style={styles.error}>{error}</Text>
-          ) : (
-            <Text style={styles.hint}>
-              Mật khẩu tối thiểu 8 ký tự. Email không được trùng với tài khoản đã có.
-            </Text>
-          )}
+          <PasswordChecklist rules={rules} />
+
+          {error && <FieldError message={error} />}
 
           <PrimaryButton
             title="Đăng ký"
             onPress={handleRegister}
             loading={submitting}
+            disabled={!passwordValid}
             style={styles.button}
           />
 
@@ -191,18 +214,6 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
   },
   form: { marginTop: spacing.sm },
-  hint: {
-    marginTop: spacing.lg,
-    fontSize: 12,
-    lineHeight: 18,
-    color: colors.textMuted,
-  },
-  error: {
-    marginTop: spacing.lg,
-    fontSize: 13,
-    lineHeight: 18,
-    color: colors.danger,
-  },
   button: { marginTop: spacing.lg },
   footer: {
     marginTop: 'auto',
