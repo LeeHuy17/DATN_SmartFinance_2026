@@ -15,11 +15,14 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { TextField } from '@/components/TextField';
+import { useAuth } from '@/features/auth/AuthProvider';
+import { InvalidCredentialsError, login } from '@/features/auth/loginApi';
 import { colors, radius, spacing } from '@/theme';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function LoginScreen() {
+  const { signIn } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -38,7 +41,15 @@ export default function LoginScreen() {
     setError(null);
     setSubmitting(true);
     try {
-      // TODO: gọi API đăng nhập (features/auth), rồi signIn(token) từ useAuth() để vào ứng dụng
+      const token = await login(email.trim().toLowerCase(), password);
+      // Lưu token; điều hướng gốc (Stack.Protected) tự chuyển sang Tổng quan
+      await signIn(token);
+    } catch (e) {
+      setError(
+        e instanceof InvalidCredentialsError
+          ? 'Email hoặc mật khẩu không đúng.'
+          : 'Không đăng nhập được. Vui lòng thử lại sau.',
+      );
     } finally {
       setSubmitting(false);
     }
