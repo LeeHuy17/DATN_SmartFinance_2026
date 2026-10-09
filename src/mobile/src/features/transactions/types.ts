@@ -7,7 +7,15 @@ export type Wallet = {
   balance: number;
 };
 
-export type Category = 'food' | 'transport' | 'shopping' | 'entertainment' | 'bill' | 'income';
+export type Category =
+  | 'food'
+  | 'transport'
+  | 'shopping'
+  | 'entertainment'
+  | 'bill'
+  | 'income'
+  | 'bonus'
+  | 'other';
 
 /** Giao dịch được tạo bằng cách quét hóa đơn (OCR) hay nhập tay */
 export type TransactionSource = 'ocr' | 'manual';

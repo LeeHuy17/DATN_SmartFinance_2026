@@ -17,7 +17,19 @@ export const CATEGORIES: Record<Category, CategoryInfo> = {
   entertainment: { label: 'Giải trí', icon: 'film-outline', bg: colors.disabled, fg: colors.textMuted },
   bill: { label: 'Hóa đơn', icon: 'flash-outline', bg: colors.warmSoft, fg: colors.warm },
   income: { label: 'Thu nhập', icon: 'arrow-down', bg: colors.primarySoft, fg: colors.primary },
+  bonus: { label: 'Thưởng', icon: 'gift-outline', bg: colors.primarySoft, fg: colors.primary },
+  other: { label: 'Khác', icon: 'pricetag-outline', bg: colors.disabled, fg: colors.textMuted },
 };
 
-/** Danh mục chi tiêu, dùng cho bộ lọc */
-export const EXPENSE_CATEGORIES: Category[] = ['food', 'transport', 'shopping', 'entertainment', 'bill'];
+/** Danh mục chi tiêu (màn hình nhập giao dịch, bộ lọc) */
+export const EXPENSE_CATEGORIES: Category[] = [
+  'food',
+  'transport',
+  'shopping',
+  'entertainment',
+  'bill',
+  'other',
+];
+
+/** Danh mục thu nhập (màn hình nhập giao dịch) */
+export const INCOME_CATEGORIES: Category[] = ['income', 'bonus', 'other'];
