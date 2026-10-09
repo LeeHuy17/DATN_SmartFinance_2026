@@ -102,6 +102,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: radius.md,
+    backgroundColor: colors.background,
     fontSize: 15,
     color: colors.text,
     ...webNoOutline,

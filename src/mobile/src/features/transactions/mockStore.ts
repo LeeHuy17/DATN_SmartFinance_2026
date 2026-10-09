@@ -2,13 +2,13 @@
 // (mất khi tải lại app). TODO: bỏ file này khi backend có API ví và giao dịch.
 import type { Transaction, Wallet } from './types';
 
-export const WALLETS: Wallet[] = [
+let wallets: Wallet[] = [
   { id: 'w1', name: 'Tiền mặt', type: 'cash', balance: 2_450_000 },
   { id: 'w2', name: 'Vietcombank', type: 'bank', balance: 12_800_000 },
   { id: 'w3', name: 'MoMo', type: 'ewallet', balance: 640_000 },
 ];
 
-const walletName = (id: string) => WALLETS.find((w) => w.id === id)?.name ?? '';
+const walletName = (id: string) => wallets.find((w) => w.id === id)?.name ?? '';
 
 /** Mốc thời gian cách hôm nay `days` ngày, lúc hh:mm */
 const at = (days: number, hh: number, mm: number) => {
@@ -65,6 +65,16 @@ const seed: Omit<Transaction, 'walletName'>[] = [
     note: 'Xem phim tối thứ bảy',
     source: 'manual',
   },
+  {
+    id: 't9',
+    title: 'Thưởng dự án',
+    category: 'bonus',
+    walletId: 'w2',
+    amount: 2_000_000,
+    date: at(3, 17, 30),
+    note: 'Thưởng hoàn thành dự án quý 3',
+    source: 'manual',
+  },
   { id: 't7', title: 'Bánh mì Phượng', category: 'food', walletId: 'w1', amount: -35_000, date: at(4, 7, 15), source: 'manual' },
   {
     id: 't8',
@@ -79,9 +89,40 @@ const seed: Omit<Transaction, 'walletName'>[] = [
 
 let transactions: Transaction[] = seed.map((t) => ({ ...t, walletName: walletName(t.walletId) }));
 
+/** Cộng (hoặc trừ, khi sign = -1) số tiền giao dịch vào số dư ví */
+const applyToWallet = (t: Pick<Transaction, 'walletId' | 'amount'>, sign: 1 | -1) => {
+  wallets = wallets.map((w) => (w.id === t.walletId ? { ...w, balance: w.balance + sign * t.amount } : w));
+};
+
+export const getWallets = () => wallets.map((w) => ({ ...w }));
+
 /** Mới nhất trước */
 export const getAll = () => [...transactions].sort((a, b) => b.date.localeCompare(a.date));
 
+export const getById = (id: string) => transactions.find((t) => t.id === id);
+
+export type TransactionInput = Omit<Transaction, 'id' | 'walletName'>;
+
+export const add = (input: TransactionInput): Transaction => {
+  const t: Transaction = { ...input, id: `t${Date.now()}`, walletName: walletName(input.walletId) };
+  transactions = [...transactions, t];
+  applyToWallet(t, 1);
+  return t;
+};
+
+export const update = (id: string, input: TransactionInput): Transaction | undefined => {
+  const old = getById(id);
+  if (!old) return undefined;
+  const t: Transaction = { ...input, id, walletName: walletName(input.walletId) };
+  // Hoàn lại số dư theo giao dịch cũ rồi áp số mới (có thể đã đổi ví hoặc số tiền)
+  applyToWallet(old, -1);
+  applyToWallet(t, 1);
+  transactions = transactions.map((x) => (x.id === id ? t : x));
+  return t;
+};
+
 export const remove = (id: string) => {
+  const old = getById(id);
+  if (old) applyToWallet(old, -1);
   transactions = transactions.filter((t) => t.id !== id);
 };

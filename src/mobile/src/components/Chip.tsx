@@ -13,9 +13,11 @@ type Props = {
    * soft: chọn thì nền xanh nhạt, viền xanh, có dấu tick (trong bảng Bộ lọc)
    */
   variant?: 'solid' | 'soft';
+  /** Hiện dấu tick khi chọn (chỉ với soft) */
+  showCheck?: boolean;
 };
 
-export function Chip({ label, selected, onPress, icon, variant = 'soft' }: Props) {
+export function Chip({ label, selected, onPress, icon, variant = 'soft', showCheck = true }: Props) {
   const solid = variant === 'solid';
   const fg = selected ? (solid ? colors.onPrimary : colors.primary) : colors.text;
 
@@ -29,7 +31,7 @@ export function Chip({ label, selected, onPress, icon, variant = 'soft' }: Props
       accessibilityRole="button"
       accessibilityState={{ selected }}
     >
-      {!solid && selected && <Ionicons name="checkmark" size={14} color={fg} />}
+      {!solid && selected && showCheck && <Ionicons name="checkmark" size={14} color={fg} />}
       {icon && <Ionicons name={icon} size={14} color={selected ? fg : colors.textMuted} />}
       <Text style={[styles.label, { color: fg }, selected && styles.labelSelected]}>{label}</Text>
     </Pressable>

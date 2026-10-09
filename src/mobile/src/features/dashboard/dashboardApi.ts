@@ -11,16 +11,24 @@ const fakeDelay = (ms = 1200) => new Promise((resolve) => setTimeout(resolve, ms
 
 export async function getDashboard(): Promise<DashboardData> {
   await fakeDelay();
-  const wallets = store.WALLETS;
+  const wallets = store.getWallets();
+  const all = store.getAll();
+
+  // Thu / chi của tháng hiện tại, tính từ giao dịch
+  const now = new Date();
+  const thisMonth = all.filter((t) => {
+    const d = new Date(t.date);
+    return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+  });
 
   return {
     displayName: 'Văn An',
     unreadNotifications: 3,
     totalBalance: wallets.reduce((sum, w) => sum + w.balance, 0),
-    month: new Date().getMonth() + 1,
-    monthIncome: 15_000_000,
-    monthExpense: 6_215_500,
+    month: now.getMonth() + 1,
+    monthIncome: thisMonth.filter((t) => t.amount > 0).reduce((s, t) => s + t.amount, 0),
+    monthExpense: thisMonth.filter((t) => t.amount < 0).reduce((s, t) => s - t.amount, 0),
     wallets,
-    recentTransactions: store.getAll().slice(0, RECENT_LIMIT),
+    recentTransactions: all.slice(0, RECENT_LIMIT),
   };
 }
