@@ -1,10 +1,8 @@
 import { useState } from 'react';
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ionicons } from '@expo/vector-icons';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { BottomSheet } from '@/components/BottomSheet';
 import { Chip } from '@/components/Chip';
-import { CATEGORIES, EXPENSE_CATEGORIES } from '@/features/transactions/categories';
 import {
   DEFAULT_FILTERS,
   TIME_LABELS,
@@ -14,13 +12,15 @@ import {
   type TransactionFilters,
   type TypeFilter,
 } from '@/features/transactions/filters';
-import type { Wallet } from '@/features/transactions/types';
+import type { Category, Wallet } from '@/features/transactions/types';
 import { colors, radius, spacing } from '@/theme';
 
 type Props = {
   visible: boolean;
   value: TransactionFilters;
   wallets: Wallet[];
+  /** Danh mục chi tiêu hiển thị trong mục "Danh mục" */
+  categories: Category[];
   onApply: (filters: TransactionFilters) => void;
   onClose: () => void;
 };
@@ -36,8 +36,7 @@ const toggle = <T,>(list: T[], item: T) =>
   list.includes(item) ? list.filter((x) => x !== item) : [...list, item];
 
 /** Bảng Bộ lọc trượt từ dưới lên; chỉnh trên bản nháp, bấm "Áp dụng" mới có hiệu lực */
-export function FilterSheet({ visible, value, wallets, onApply, onClose }: Props) {
-  const insets = useSafeAreaInsets();
+export function FilterSheet({ visible, value, wallets, categories, onApply, onClose }: Props) {
   const [draft, setDraft] = useState(value);
   const [wasVisible, setWasVisible] = useState(visible);
   // Mỗi lần mở lại thì bắt đầu từ bộ lọc đang áp dụng
@@ -53,100 +52,90 @@ export function FilterSheet({ visible, value, wallets, onApply, onClose }: Props
   const count = countActive(draft);
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={styles.backdrop}>
-        <Pressable style={styles.flex} onPress={onClose} accessibilityLabel="Đóng bộ lọc" />
-        <View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, spacing.md) }]}>
-          <View style={styles.handle} />
-          <View style={styles.header}>
-            <Text style={styles.title}>Bộ lọc</Text>
-            <Pressable onPress={onClose} hitSlop={10} accessibilityRole="button" accessibilityLabel="Đóng">
-              <Ionicons name="close" size={22} color={colors.textMuted} />
-            </Pressable>
-          </View>
-
-          <ScrollView contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
-            <Text style={styles.section}>Thời gian</Text>
-            <View style={styles.chips}>
-              {TIME_OPTIONS.map((t) => (
-                <Chip
-                  key={t}
-                  label={TIME_LABELS[t]}
-                  icon={t === 'custom' ? 'calendar-outline' : undefined}
-                  selected={draft.time === t}
-                  // Bấm lại lựa chọn đang chọn thì bỏ chọn (về "mọi thời gian")
-                  onPress={() => set({ time: draft.time === t ? 'all' : t })}
-                />
-              ))}
-            </View>
-            {draft.time === 'custom' && (
-              <>
-                <View style={styles.range}>
-                  <DayInput label="Từ ngày" value={draft.from} onChange={(from) => set({ from })} />
-                  <DayInput label="Đến ngày" value={draft.to} onChange={(to) => set({ to })} />
-                </View>
-                {customInvalid && <Text style={styles.invalid}>Nhập ngày theo dạng dd/mm/yyyy.</Text>}
-              </>
-            )}
-
-            <Text style={styles.section}>Loại</Text>
-            <View style={styles.chips}>
-              {TYPE_OPTIONS.map((o) => (
-                <Chip
-                  key={o.value}
-                  label={o.label}
-                  selected={draft.type === o.value}
-                  onPress={() => set({ type: o.value })}
-                />
-              ))}
-            </View>
-
-            <Text style={styles.section}>Danh mục</Text>
-            <View style={styles.chips}>
-              {EXPENSE_CATEGORIES.map((c) => (
-                <Chip
-                  key={c}
-                  label={CATEGORIES[c].label}
-                  icon={CATEGORIES[c].icon}
-                  selected={draft.categories.includes(c)}
-                  onPress={() => set({ categories: toggle(draft.categories, c) })}
-                />
-              ))}
-            </View>
-
-            <Text style={styles.section}>Ví</Text>
-            <View style={styles.chips}>
-              {wallets.map((w) => (
-                <Chip
-                  key={w.id}
-                  label={w.name}
-                  selected={draft.walletIds.includes(w.id)}
-                  onPress={() => set({ walletIds: toggle(draft.walletIds, w.id) })}
-                />
-              ))}
-            </View>
-          </ScrollView>
-
-          <View style={styles.footer}>
-            <Pressable
-              style={[styles.button, styles.reset]}
-              onPress={() => setDraft(DEFAULT_FILTERS)}
-              accessibilityRole="button"
-            >
-              <Text style={styles.resetText}>Đặt lại</Text>
-            </Pressable>
-            <Pressable
-              style={[styles.button, styles.apply, customInvalid && styles.applyDisabled]}
-              onPress={() => onApply(draft)}
-              disabled={customInvalid}
-              accessibilityRole="button"
-            >
-              <Text style={styles.applyText}>Áp dụng{count > 0 ? ` (${count})` : ''}</Text>
-            </Pressable>
-          </View>
-        </View>
+    <BottomSheet
+      visible={visible}
+      title="Bộ lọc"
+      onClose={onClose}
+      footer={
+        <>
+          <Pressable
+            style={[styles.button, styles.reset]}
+            onPress={() => setDraft(DEFAULT_FILTERS)}
+            accessibilityRole="button"
+          >
+            <Text style={styles.resetText}>Đặt lại</Text>
+          </Pressable>
+          <Pressable
+            style={[styles.button, styles.apply, customInvalid && styles.applyDisabled]}
+            onPress={() => onApply(draft)}
+            disabled={customInvalid}
+            accessibilityRole="button"
+          >
+            <Text style={styles.applyText}>Áp dụng{count > 0 ? ` (${count})` : ''}</Text>
+          </Pressable>
+        </>
+      }
+    >
+      <Text style={styles.section}>Thời gian</Text>
+      <View style={styles.chips}>
+        {TIME_OPTIONS.map((t) => (
+          <Chip
+            key={t}
+            label={TIME_LABELS[t]}
+            icon={t === 'custom' ? 'calendar-outline' : undefined}
+            selected={draft.time === t}
+            // Bấm lại lựa chọn đang chọn thì bỏ chọn (về "mọi thời gian")
+            onPress={() => set({ time: draft.time === t ? 'all' : t })}
+          />
+        ))}
       </View>
-    </Modal>
+      {draft.time === 'custom' && (
+        <>
+          <View style={styles.range}>
+            <DayInput label="Từ ngày" value={draft.from} onChange={(from) => set({ from })} />
+            <DayInput label="Đến ngày" value={draft.to} onChange={(to) => set({ to })} />
+          </View>
+          {customInvalid && <Text style={styles.invalid}>Nhập ngày theo dạng dd/mm/yyyy.</Text>}
+        </>
+      )}
+
+      <Text style={styles.section}>Loại</Text>
+      <View style={styles.chips}>
+        {TYPE_OPTIONS.map((o) => (
+          <Chip
+            key={o.value}
+            label={o.label}
+            selected={draft.type === o.value}
+            onPress={() => set({ type: o.value })}
+          />
+        ))}
+      </View>
+
+      <Text style={styles.section}>Danh mục</Text>
+      <View style={styles.chips}>
+        {categories.map((c) => (
+          <Chip
+            key={c.id}
+            label={c.name}
+            icon={c.icon}
+            selected={draft.categories.includes(c.id)}
+            onPress={() => set({ categories: toggle(draft.categories, c.id) })}
+          />
+        ))}
+      </View>
+
+      <Text style={styles.section}>Ví</Text>
+      <View style={styles.chips}>
+        {wallets.map((w) => (
+          <Chip
+            key={w.id}
+            label={w.name}
+            selected={draft.walletIds.includes(w.id)}
+            onPress={() => set({ walletIds: toggle(draft.walletIds, w.id) })}
+          />
+        ))}
+      </View>
+    </BottomSheet>
   );
 }
 
@@ -169,30 +158,6 @@ function DayInput({ label, value, onChange }: { label: string; value: string; on
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  backdrop: { flex: 1, backgroundColor: colors.overlay },
-  sheet: {
-    maxHeight: '85%',
-    borderTopLeftRadius: radius.xl,
-    borderTopRightRadius: radius.xl,
-    backgroundColor: colors.background,
-  },
-  handle: {
-    alignSelf: 'center',
-    width: 40,
-    height: 4,
-    marginTop: spacing.sm,
-    borderRadius: 2,
-    backgroundColor: colors.border,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: spacing.lg - 4,
-    paddingTop: spacing.md - 4,
-  },
-  title: { fontSize: 18, fontWeight: '700', color: colors.text },
-  body: { paddingHorizontal: spacing.lg - 4, paddingBottom: spacing.sm },
   section: {
     marginTop: spacing.md,
     marginBottom: spacing.sm,
@@ -213,12 +178,6 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   invalid: { marginTop: spacing.xs, fontSize: 12, color: colors.danger },
-  footer: {
-    flexDirection: 'row',
-    gap: spacing.md - 4,
-    paddingHorizontal: spacing.lg - 4,
-    paddingTop: spacing.md - 4,
-  },
   button: { height: 50, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
   reset: { flex: 1, borderWidth: 1, borderColor: colors.border },
   resetText: { fontSize: 15, fontWeight: '700', color: colors.text },

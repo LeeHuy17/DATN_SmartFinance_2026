@@ -16,18 +16,20 @@ type Props = {
   onChange: (value: number) => void;
   error?: string | null;
   autoFocus?: boolean;
+  /** Mặc định "Số tiền" */
+  label?: string;
 };
 
 /** Ô nhập số tiền cỡ lớn, tự thêm dấu chấm phân cách hàng nghìn khi gõ */
 export const AmountInput = forwardRef<TextInput, Props>(function AmountInput(
-  { value, onChange, error, autoFocus },
+  { value, onChange, error, autoFocus, label = 'Số tiền' },
   ref,
 ) {
   const [focused, setFocused] = useState(false);
 
   return (
     <View>
-      <Text style={styles.label}>Số tiền</Text>
+      <Text style={styles.label}>{label}</Text>
       <View style={[styles.row, focused && styles.rowFocused, !!error && styles.rowError]}>
         <TextInput
           ref={ref}
@@ -43,7 +45,7 @@ export const AmountInput = forwardRef<TextInput, Props>(function AmountInput(
           autoFocus={autoFocus}
           onFocus={() => setFocused(true)}
           onBlur={() => setFocused(false)}
-          accessibilityLabel="Số tiền"
+          accessibilityLabel={label}
         />
         <Text style={styles.currency}>đ</Text>
       </View>

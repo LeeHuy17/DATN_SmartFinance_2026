@@ -1,5 +1,4 @@
-import { CATEGORIES } from './categories';
-import type { Category, Transaction } from './types';
+import type { Transaction } from './types';
 
 export type TypeFilter = 'all' | 'expense' | 'income';
 export type TimeFilter = 'all' | 'today' | '7d' | 'month' | 'custom';
@@ -10,7 +9,8 @@ export type TransactionFilters = {
   /** Dùng khi time = 'custom', dạng dd/mm/yyyy (để trống = không giới hạn) */
   from: string;
   to: string;
-  categories: Category[];
+  /** id danh mục */
+  categories: string[];
   walletIds: string[];
 };
 
@@ -86,7 +86,7 @@ function matchesQuery(t: Transaction, query: string) {
   const q = normalizeText(query);
   if (!q) return true;
   const haystack = normalizeText(
-    [t.title, t.note ?? '', CATEGORIES[t.category].label, t.walletName].join(' '),
+    [t.title, t.note ?? '', t.category.name, t.walletName].join(' '),
   );
   if (haystack.includes(q)) return true;
   // "65000", "65.000" hay "65k" đều khớp -65.000đ
@@ -102,7 +102,7 @@ export function applyFilters(list: Transaction[], f: TransactionFilters, query: 
     const d = new Date(t.date);
     if (from && d < from) return false;
     if (to && d > to) return false;
-    if (f.categories.length && !f.categories.includes(t.category)) return false;
+    if (f.categories.length && !f.categories.includes(t.category.id)) return false;
     if (f.walletIds.length && !f.walletIds.includes(t.walletId)) return false;
     return matchesQuery(t, query);
   });

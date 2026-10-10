@@ -12,7 +12,7 @@ import {
   type TextStyle,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 import { Chip } from '@/components/Chip';
@@ -28,8 +28,8 @@ import {
   type TransactionFilters,
   type TypeFilter,
 } from '@/features/transactions/filters';
-import { listTransactions, listWallets } from '@/features/transactions/transactionsApi';
-import type { Transaction, Wallet } from '@/features/transactions/types';
+import { listCategories, listTransactions, listWallets } from '@/features/transactions/transactionsApi';
+import type { Category, Transaction, Wallet } from '@/features/transactions/types';
 import { useTransactionQuickView } from '@/features/transactions/useTransactionQuickView';
 import { formatDayMonth, formatRelativeDay, formatVnd } from '@/lib/format';
 import { colors, radius, spacing } from '@/theme';
@@ -52,16 +52,22 @@ function dayLabel(date: Date) {
 
 export default function TransactionHistoryScreen() {
   const router = useRouter();
+  // Mở từ nút cây bút ở tab Ví: lọc sẵn theo ví để người dùng truy vết và sửa giao dịch sai
+  const params = useLocalSearchParams<{ walletId?: string }>();
   const [all, setAll] = useState<Transaction[] | null>(null);
   const [wallets, setWallets] = useState<Wallet[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [query, setQuery] = useState('');
-  const [filters, setFilters] = useState<TransactionFilters>(DEFAULT_FILTERS);
+  const [filters, setFilters] = useState<TransactionFilters>(() =>
+    params.walletId ? { ...DEFAULT_FILTERS, walletIds: [params.walletId] } : DEFAULT_FILTERS,
+  );
   const [sheetOpen, setSheetOpen] = useState(false);
 
   const load = useCallback(async () => {
-    const [list, ws] = await Promise.all([listTransactions(), listWallets()]);
+    const [list, ws, cs] = await Promise.all([listTransactions(), listWallets(), listCategories('expense')]);
     setAll(list);
     setWallets(ws);
+    setCategories(cs);
   }, []);
 
   // Tải lại mỗi khi quay về màn hình (vd: sau khi sửa giao dịch)
@@ -215,12 +221,37 @@ export default function TransactionHistoryScreen() {
         </ScrollView>
       </View>
 
+      {filters.walletIds.length > 0 && (
+        <View style={styles.walletBanner}>
+          <Ionicons name="wallet-outline" size={16} color={colors.primary} />
+          <Text style={styles.walletBannerText} numberOfLines={2}>
+            Giao dịch của ví{' '}
+            <Text style={styles.walletBannerStrong}>
+              {wallets
+                .filter((w) => filters.walletIds.includes(w.id))
+                .map((w) => w.name)
+                .join(', ')}
+            </Text>
+            . Chạm một giao dịch để sửa nếu số dư chưa khớp.
+          </Text>
+          <Pressable
+            onPress={() => setFilters((f) => ({ ...f, walletIds: [] }))}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Bỏ lọc theo ví"
+          >
+            <Ionicons name="close" size={18} color={colors.primary} />
+          </Pressable>
+        </View>
+      )}
+
       {renderList()}
 
       <FilterSheet
         visible={sheetOpen}
         value={filters}
         wallets={wallets}
+        categories={categories}
         onClose={() => setSheetOpen(false)}
         onApply={(f) => {
           setFilters(f);
@@ -301,6 +332,19 @@ const styles = StyleSheet.create({
     backgroundColor: colors.badge,
   },
   chips: { gap: spacing.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.md - 4 },
+  walletBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginHorizontal: spacing.md,
+    marginBottom: spacing.md - 4,
+    paddingHorizontal: spacing.md - 4,
+    paddingVertical: spacing.sm + 2,
+    borderRadius: radius.md,
+    backgroundColor: colors.primarySoft,
+  },
+  walletBannerText: { flex: 1, fontSize: 13, lineHeight: 18, color: colors.primary },
+  walletBannerStrong: { fontWeight: '700' },
   loading: { marginTop: spacing.xl },
   listContent: { paddingHorizontal: spacing.md, paddingBottom: spacing.xl },
   resultCount: { marginBottom: spacing.sm, fontSize: 13, color: colors.textMuted },

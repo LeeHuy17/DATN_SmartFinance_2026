@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import { CATEGORIES } from '@/features/transactions/categories';
+import { softColor } from '@/features/transactions/categories';
 import type { Transaction } from '@/features/transactions/types';
 import { formatDayMonth, formatRelativeDay, formatSignedVnd, formatTime } from '@/lib/format';
 import { colors, radius, spacing } from '@/theme';
@@ -18,7 +18,7 @@ type Props = {
 };
 
 export function TransactionItem({ item, onPress, when = 'relative', divider }: Props) {
-  const category = CATEGORIES[item.category];
+  const { category } = item;
   const income = item.amount > 0;
   const whenText =
     when === 'time'
@@ -34,8 +34,8 @@ export function TransactionItem({ item, onPress, when = 'relative', divider }: P
       accessibilityRole="button"
       accessibilityLabel={`${item.title}, ${formatSignedVnd(item.amount)}`}
     >
-      <View style={[styles.icon, { backgroundColor: category.bg }]}>
-        <Ionicons name={category.icon} size={20} color={category.fg} />
+      <View style={[styles.icon, { backgroundColor: softColor(category.color) }]}>
+        <Ionicons name={category.icon} size={20} color={category.color} />
       </View>
 
       <View style={styles.texts}>
@@ -43,7 +43,7 @@ export function TransactionItem({ item, onPress, when = 'relative', divider }: P
           {item.title}
         </Text>
         <Text style={styles.meta}>
-          {category.label} · {item.walletName} · {whenText}
+          {category.name} · {item.walletName} · {whenText}
         </Text>
       </View>
 

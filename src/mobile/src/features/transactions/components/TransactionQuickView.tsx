@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import { CATEGORIES } from '@/features/transactions/categories';
+import { softColor } from '@/features/transactions/categories';
 import type { Transaction } from '@/features/transactions/types';
 import { formatDateTime, formatSignedVnd } from '@/lib/format';
 import { colors, radius, spacing } from '@/theme';
@@ -41,19 +41,15 @@ export function TransactionQuickView({ transaction, onClose, onEdit, onDelete }:
           // Chạm bên trong khung không đóng khung
           <Pressable style={styles.card} onPress={() => {}} accessibilityViewIsModal>
             <View style={styles.top}>
-              <View style={[styles.icon, { backgroundColor: CATEGORIES[t.category].bg }]}>
-                <Ionicons
-                  name={CATEGORIES[t.category].icon}
-                  size={22}
-                  color={CATEGORIES[t.category].fg}
-                />
+              <View style={[styles.icon, { backgroundColor: softColor(t.category.color) }]}>
+                <Ionicons name={t.category.icon} size={22} color={t.category.color} />
               </View>
               <Pressable onPress={onClose} hitSlop={10} accessibilityRole="button" accessibilityLabel="Đóng">
                 <Ionicons name="close" size={22} color={colors.textMuted} />
               </Pressable>
             </View>
 
-            <Text style={styles.category}>{CATEGORIES[t.category].label}</Text>
+            <Text style={styles.category}>{t.category.name}</Text>
             <Text style={styles.title}>{t.title}</Text>
             <Text style={[styles.amount, { color: t.amount > 0 ? colors.primary : colors.expense }]}>
               {formatSignedVnd(t.amount)}
