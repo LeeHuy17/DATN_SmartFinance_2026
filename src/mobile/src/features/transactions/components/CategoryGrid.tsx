@@ -1,14 +1,14 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import { CATEGORIES } from '@/features/transactions/categories';
 import type { Category } from '@/features/transactions/types';
 import { colors, radius, spacing } from '@/theme';
 
 type Props = {
   categories: Category[];
-  value: Category | null;
-  onChange: (c: Category) => void;
+  /** id danh mục đang chọn */
+  value: string | null;
+  onChange: (id: string) => void;
 };
 
 const COLUMNS = 4;
@@ -24,20 +24,19 @@ export function CategoryGrid({ categories, value, onChange }: Props) {
   }
 
   const renderTile = (c: Category) => {
-    const selected = c === value;
-    const info = CATEGORIES[c];
+    const selected = c.id === value;
     return (
       <Pressable
-        key={c}
+        key={c.id}
         style={[styles.tile, selected && styles.tileSelected]}
-        onPress={() => onChange(c)}
+        onPress={() => onChange(c.id)}
         accessibilityRole="radio"
         accessibilityState={{ selected }}
-        accessibilityLabel={info.label}
+        accessibilityLabel={c.name}
       >
-        <Ionicons name={info.icon} size={22} color={selected ? colors.primary : colors.textMuted} />
+        <Ionicons name={c.icon} size={22} color={selected ? colors.primary : colors.textMuted} />
         <Text style={[styles.label, selected && styles.labelSelected]} numberOfLines={1}>
-          {info.label}
+          {c.name}
         </Text>
       </Pressable>
     );

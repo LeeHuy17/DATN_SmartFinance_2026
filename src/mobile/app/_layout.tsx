@@ -52,6 +52,8 @@ function RootNavigator() {
             <Stack.Screen name="transaction/preview" />
             <Stack.Screen name="transactions" />
             <Stack.Screen name="profile" />
+            <Stack.Screen name="categories/index" />
+            <Stack.Screen name="categories/edit" />
           </Stack.Protected>
         </Stack>
       )}

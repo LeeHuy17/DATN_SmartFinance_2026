@@ -2,7 +2,13 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { colors, radius } from '@/theme';
 
-type Option<T extends string> = { value: T; label: string };
+type Option<T extends string> = {
+  value: T;
+  label: string;
+  /** Màu chữ / nền khi được chọn (mặc định: chữ xanh, nền trắng) */
+  selectedColor?: string;
+  selectedBackground?: string;
+};
 
 type Props<T extends string> = {
   options: Option<T>[];
@@ -19,12 +25,24 @@ export function SegmentedControl<T extends string>({ options, value, onChange }:
         return (
           <Pressable
             key={o.value}
-            style={[styles.segment, selected && styles.segmentSelected]}
+            style={[
+              styles.segment,
+              selected && styles.segmentSelected,
+              selected && o.selectedBackground && { backgroundColor: o.selectedBackground },
+            ]}
             onPress={() => onChange(o.value)}
             accessibilityRole="tab"
             accessibilityState={{ selected }}
           >
-            <Text style={[styles.label, selected && styles.labelSelected]}>{o.label}</Text>
+            <Text
+              style={[
+                styles.label,
+                selected && styles.labelSelected,
+                selected && o.selectedColor && { color: o.selectedColor },
+              ]}
+            >
+              {o.label}
+            </Text>
           </Pressable>
         );
       })}

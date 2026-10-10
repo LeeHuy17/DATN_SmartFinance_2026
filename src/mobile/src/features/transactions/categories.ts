@@ -1,35 +1,47 @@
-import { Ionicons } from '@expo/vector-icons';
-
 import { colors } from '@/theme';
-import type { Category } from './types';
+import type { CategoryKind, IconName } from './types';
 
-type CategoryInfo = {
-  label: string;
-  icon: keyof typeof Ionicons.glyphMap;
-  bg: string;
-  fg: string;
-};
+/** Bảng màu cho danh mục (theo thiết kế, 8 màu) */
+export const CATEGORY_COLORS = [
+  '#0F6B4F',
+  '#2F6FB5',
+  '#E08A1E',
+  '#C8436B',
+  '#7C5CB5',
+  '#1F8A85',
+  '#8A6A3D',
+  '#5E6A65',
+] as const;
 
-export const CATEGORIES: Record<Category, CategoryInfo> = {
-  food: { label: 'Ăn uống', icon: 'cafe-outline', bg: colors.warmSoft, fg: colors.warm },
-  transport: { label: 'Di chuyển', icon: 'car-outline', bg: colors.infoSoft, fg: colors.walletBank },
-  shopping: { label: 'Mua sắm', icon: 'cart-outline', bg: colors.primarySoft, fg: colors.primary },
-  entertainment: { label: 'Giải trí', icon: 'film-outline', bg: colors.disabled, fg: colors.textMuted },
-  bill: { label: 'Hóa đơn', icon: 'flash-outline', bg: colors.warmSoft, fg: colors.warm },
-  income: { label: 'Thu nhập', icon: 'arrow-down', bg: colors.primarySoft, fg: colors.primary },
-  bonus: { label: 'Thưởng', icon: 'gift-outline', bg: colors.primarySoft, fg: colors.primary },
-  other: { label: 'Khác', icon: 'pricetag-outline', bg: colors.disabled, fg: colors.textMuted },
-};
-
-/** Danh mục chi tiêu (màn hình nhập giao dịch, bộ lọc) */
-export const EXPENSE_CATEGORIES: Category[] = [
-  'food',
-  'transport',
-  'shopping',
-  'entertainment',
-  'bill',
-  'other',
+/** Bộ biểu tượng chọn cho danh mục (theo thiết kế, 12 biểu tượng) */
+export const CATEGORY_ICONS: IconName[] = [
+  'cafe-outline',
+  'cart-outline',
+  'car-outline',
+  'home-outline',
+  'film-outline',
+  'heart-outline',
+  'book-outline',
+  'gift-outline',
+  'paper-plane-outline',
+  'flash-outline',
+  'pricetag-outline',
+  'wallet-outline',
 ];
 
-/** Danh mục thu nhập (màn hình nhập giao dịch) */
-export const INCOME_CATEGORIES: Category[] = ['income', 'bonus', 'other'];
+/** Nền nhạt của một màu danh mục (độ mờ ~13%) */
+export const softColor = (hex: string) => `${hex}22`;
+
+/**
+ * Lựa chọn Chi tiêu / Thu nhập cho SegmentedControl, dùng chung ở Thêm giao dịch và Quản lý danh mục.
+ * Chi tiêu: chữ đỏ nền hồng (gợi ý trừ tiền); Thu nhập: chữ xanh nền xanh nhạt.
+ */
+export const KIND_OPTIONS: {
+  value: CategoryKind;
+  label: string;
+  selectedColor: string;
+  selectedBackground: string;
+}[] = [
+  { value: 'expense', label: 'Chi tiêu', selectedColor: colors.danger, selectedBackground: colors.dangerSoft },
+  { value: 'income', label: 'Thu nhập', selectedColor: colors.primary, selectedBackground: colors.primarySoft },
+];

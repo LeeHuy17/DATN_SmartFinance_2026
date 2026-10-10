@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
@@ -10,7 +10,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 import { Chip } from '@/components/Chip';
@@ -18,27 +18,23 @@ import { FieldError } from '@/components/FieldError';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { SegmentedControl } from '@/components/SegmentedControl';
 import { TextField } from '@/components/TextField';
-import { EXPENSE_CATEGORIES, INCOME_CATEGORIES, CATEGORIES } from '@/features/transactions/categories';
+import { KIND_OPTIONS } from '@/features/transactions/categories';
 import { AmountInput } from '@/features/transactions/components/AmountInput';
 import { CategoryGrid } from '@/features/transactions/components/CategoryGrid';
 import { parseDayInput } from '@/features/transactions/filters';
 import {
   createTransaction,
   getTransaction,
+  listCategories,
   listWallets,
   updateTransaction,
 } from '@/features/transactions/transactionsApi';
-import type { Category, Transaction, Wallet } from '@/features/transactions/types';
+import type { Category, CategoryKind, Transaction, Wallet } from '@/features/transactions/types';
 import { formatFullDate, maskDayInput } from '@/lib/format';
 import { colors, spacing } from '@/theme';
 
-type Kind = 'expense' | 'income';
+type Kind = CategoryKind;
 type Errors = { amount?: string; category?: string; date?: string; form?: string };
-
-const KIND_OPTIONS: { value: Kind; label: string }[] = [
-  { value: 'expense', label: 'Chi tiêu' },
-  { value: 'income', label: 'Thu nhập' },
-];
 
 export default function AddTransactionScreen() {
   const router = useRouter();
@@ -47,13 +43,14 @@ export default function AddTransactionScreen() {
   const editing = !!id;
 
   const [wallets, setWallets] = useState<Wallet[]>([]);
+  const [allCategories, setAllCategories] = useState<Category[]>([]);
   const [original, setOriginal] = useState<Transaction | null>(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
   const [kind, setKind] = useState<Kind>('expense');
   const [amount, setAmount] = useState(0);
-  const [category, setCategory] = useState<Category | null>(null);
+  const [categoryId, setCategoryId] = useState<string | null>(null);
   const [walletId, setWalletId] = useState<string | null>(null);
   const [day, setDay] = useState(formatFullDate(new Date()));
   const [note, setNote] = useState('');
@@ -71,7 +68,7 @@ export default function AddTransactionScreen() {
           setOriginal(t);
           setKind(t.amount < 0 ? 'expense' : 'income');
           setAmount(Math.abs(t.amount));
-          setCategory(t.category);
+          setCategoryId(t.category.id);
           setWalletId(t.walletId);
           setDay(formatFullDate(t.date));
           setNote(t.note ?? '');
@@ -83,16 +80,25 @@ export default function AddTransactionScreen() {
     })();
   }, [id]);
 
-  const categories = kind === 'expense' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES;
+  // Tải danh mục mỗi khi quay lại màn hình (có thể vừa thêm / ẩn ở màn Quản lý danh mục)
+  useFocusEffect(
+    useCallback(() => {
+      listCategories().then(setAllCategories);
+    }, []),
+  );
+
+  // Danh mục đang hiển thị của loại đã chọn; khi sửa thì giữ cả danh mục cũ dù đã bị ẩn
+  const categories = allCategories.filter(
+    (c) => c.kind === kind && (!c.hidden || c.id === original?.category.id),
+  );
+  const category = allCategories.find((c) => c.id === categoryId) ?? null;
   const clearError = (key: keyof Errors) =>
     setErrors((e) => (e[key] ? { ...e, [key]: undefined } : e));
 
   const changeKind = (k: Kind) => {
     setKind(k);
     // Danh mục cũ không thuộc loại mới thì bỏ chọn
-    if (category && !(k === 'expense' ? EXPENSE_CATEGORIES : INCOME_CATEGORIES).includes(category)) {
-      setCategory(null);
-    }
+    if (category && category.kind !== k) setCategoryId(null);
   };
 
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/'));
@@ -122,10 +128,10 @@ export default function AddTransactionScreen() {
     // Khi sửa, giữ tên riêng (vd: tên cửa hàng từ hóa đơn); tên tự sinh thì tạo lại theo dữ liệu mới.
     const titleWasDerived =
       original &&
-      (original.title === original.note || original.title === CATEGORIES[original.category].label);
+      (original.title === original.note || original.title === original.category.name);
     const input = {
-      title: original && !titleWasDerived ? original.title : trimmedNote || CATEGORIES[category].label,
-      category,
+      title: original && !titleWasDerived ? original.title : trimmedNote || category.name,
+      categoryId: category.id,
       walletId,
       amount: kind === 'expense' ? -amount : amount,
       date: date.toISOString(),
@@ -176,17 +182,21 @@ export default function AddTransactionScreen() {
 
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionTitle}>Danh mục</Text>
-          {/* TODO: mở màn hình quản lý danh mục khi đã có */}
-          <Pressable style={styles.manage} hitSlop={8} accessibilityRole="button">
+          <Pressable
+            style={styles.manage}
+            onPress={() => router.push({ pathname: '/categories', params: { kind } })}
+            hitSlop={8}
+            accessibilityRole="button"
+          >
             <Text style={styles.manageText}>Quản lý</Text>
             <Ionicons name="chevron-forward" size={16} color={colors.primary} />
           </Pressable>
         </View>
         <CategoryGrid
           categories={categories}
-          value={category}
+          value={categoryId}
           onChange={(c) => {
-            setCategory(c);
+            setCategoryId(c);
             clearError('category');
           }}
         />
