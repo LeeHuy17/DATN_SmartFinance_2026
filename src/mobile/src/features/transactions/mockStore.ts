@@ -49,8 +49,8 @@ let categories: Category[] = [
   { id: 'c-food', name: 'Ăn uống', kind: 'expense', color: '#E08A1E', icon: 'cafe-outline', hidden: false },
   { id: 'c-transport', name: 'Di chuyển', kind: 'expense', color: '#2F6FB5', icon: 'car-outline', hidden: false },
   { id: 'c-shopping', name: 'Mua sắm', kind: 'expense', color: '#0F6B4F', icon: 'cart-outline', hidden: false },
-  { id: 'c-fun', name: 'Giải trí', kind: 'expense', color: '#7C5CB5', icon: 'film-outline', hidden: false },
-  { id: 'c-bill', name: 'Hóa đơn', kind: 'expense', color: '#1F8A85', icon: 'flash-outline', hidden: false },
+  { id: 'c-fun', name: 'Giải trí', kind: 'expense', color: '#1F8A85', icon: 'film-outline', hidden: false },
+  { id: 'c-bill', name: 'Hóa đơn', kind: 'expense', color: '#7C5CB5', icon: 'flash-outline', hidden: false },
   { id: 'c-health', name: 'Y tế', kind: 'expense', color: '#C8436B', icon: 'heart-outline', hidden: false },
   { id: 'c-edu', name: 'Giáo dục', kind: 'expense', color: '#8A6A3D', icon: 'book-outline', hidden: true },
   { id: 'c-other-exp', name: 'Khác', kind: 'expense', color: '#5E6A65', icon: 'pricetag-outline', hidden: false },
@@ -109,6 +109,38 @@ const lastMonth = (day: number) => {
   return new Date(d.getFullYear(), d.getMonth() - 1, day, 9, 0).toISOString();
 };
 
+/** [số ngày trước, tên, danh mục, ví, số tiền] */
+const HISTORY: [number, string, string, string, number][] = [
+  [5, 'Phở Thìn', 'c-food', 'w1', -55_000],
+  [6, 'Xăng xe', 'c-transport', 'w1', -80_000],
+  [8, 'Bách Hóa Xanh', 'c-shopping', 'w2', -245_000],
+  [9, 'Cơm tấm', 'c-food', 'w1', -45_000],
+  [11, 'Internet FPT', 'c-bill', 'w2', -220_000],
+  [12, 'Be bike', 'c-transport', 'w3', -32_000],
+  [13, 'Lẩu Thái', 'c-food', 'w2', -380_000],
+  [15, 'Shopee', 'c-shopping', 'w3', -420_000],
+  [16, 'Trà sữa', 'c-food', 'w3', -55_000],
+  [18, 'Netflix', 'c-fun', 'w2', -260_000],
+  [19, 'Grab', 'c-transport', 'w3', -64_000],
+  [21, 'Bún bò', 'c-food', 'w1', -50_000],
+  [23, 'Nước sinh hoạt', 'c-bill', 'w2', -150_000],
+  [25, 'Uniqlo', 'c-shopping', 'w2', -590_000],
+  [27, 'Cà phê', 'c-food', 'w1', -39_000],
+  [30, 'Xăng xe', 'c-transport', 'w1', -85_000],
+  [33, 'Siêu thị Go!', 'c-shopping', 'w2', -360_000],
+  [36, 'Nhà hàng', 'c-food', 'w2', -520_000],
+  [40, 'Tiền điện tháng 8', 'c-bill', 'w2', -480_000],
+  [44, 'Concert', 'c-fun', 'w3', -700_000],
+  [48, 'Grab', 'c-transport', 'w3', -72_000],
+  [52, 'Ăn sáng', 'c-food', 'w1', -35_000],
+  [58, 'Lazada', 'c-shopping', 'w3', -310_000],
+  [64, 'Tiệc sinh nhật', 'c-food', 'w2', -650_000],
+  [70, 'Bảo dưỡng xe', 'c-transport', 'w2', -450_000],
+  [75, 'Gym', 'c-fun', 'w2', -400_000],
+  [82, 'Tiền điện tháng 7', 'c-bill', 'w2', -510_000],
+  [88, 'Siêu thị', 'c-shopping', 'w2', -280_000],
+];
+
 let transactions: StoredTransaction[] = [
   {
     id: 't1',
@@ -158,6 +190,16 @@ let transactions: StoredTransaction[] = [
   // Danh mục "Giáo dục" đang ẩn nhưng vẫn có giao dịch cũ
   { id: 't10', title: 'Học phí tiếng Anh', categoryId: 'c-edu', walletId: 'w2', amount: -1_200_000, date: lastMonth(10), source: 'manual' },
   { id: 't11', title: 'Sách lập trình', categoryId: 'c-edu', walletId: 'w3', amount: -250_000, date: lastMonth(18), source: 'ocr' },
+  // Giao dịch cũ hơn (từ 5 ngày trước trở về), để báo cáo tuần / tháng / năm có dữ liệu
+  ...HISTORY.map(([days, title, categoryId, walletId, amount], i): StoredTransaction => ({
+    id: `h${i + 1}`,
+    title,
+    categoryId,
+    walletId,
+    amount,
+    date: at(days, 12, (i * 7) % 60),
+    source: i % 3 === 0 ? 'ocr' : 'manual',
+  })),
 ];
 
 export const countByCategory = (categoryId: string) =>
