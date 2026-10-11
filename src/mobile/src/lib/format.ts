@@ -55,3 +55,12 @@ export const maskDayInput = (text: string) => {
   const digits = text.replace(/\D/g, '').slice(0, 8);
   return [digits.slice(0, 2), digits.slice(2, 4), digits.slice(4)].filter(Boolean).join('/');
 };
+
+/** Số tiền rút gọn cho biểu đồ: 2.600.000 → "2,6tr", 65.000 → "65k" */
+export const formatShortVnd = (amount: number) => {
+  const n = Math.abs(amount);
+  if (n >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(1).replace('.', ',').replace(',0', '')}tỷ`;
+  if (n >= 100_000) return `${(n / 1_000_000).toFixed(1).replace('.', ',')}tr`;
+  if (n >= 1_000) return `${Math.round(n / 1_000)}k`;
+  return `${n}đ`;
+};
