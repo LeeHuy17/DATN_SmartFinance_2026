@@ -10,6 +10,9 @@
     "lint": "tsc --noEmit"
   },
   "dependencies": {
+    "@expo/metro-runtime": "~57.0.16",
+    "@expo/vector-icons": "^15.0.2",
+    "@lottiefiles/dotlottie-react": "^0.13.5",
     "@types/react": "~19.2.4",
     "expo": "^57.0.27",
     "expo-constants": "~57.0.21",
@@ -17,12 +20,16 @@
     "expo-localization": "~57.0.2",
     "expo-router": "~57.0.25",
     "expo-secure-store": "~57.0.4",
+    "expo-splash-screen": "~57.0.9",
     "expo-status-bar": "~57.0.1",
+    "lottie-react-native": "~7.3.8",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "react-native": "0.86.3",
     "react-native-safe-area-context": "~5.7.0",
     "react-native-screens": "~4.26.0",
+    "react-native-svg": "15.15.4",
+    "react-native-web": "^0.21.2",
     "typescript": "~6.0.3"
   },
   "devDependencies": {
