@@ -1,3 +1,4 @@
+import { unreadCount } from '@/features/notifications/notificationsStore';
 import * as store from '@/features/transactions/mockStore';
 import type { DashboardData } from './types';
 
@@ -23,7 +24,7 @@ export async function getDashboard(): Promise<DashboardData> {
 
   return {
     displayName: 'Văn An',
-    unreadNotifications: 3,
+    unreadNotifications: unreadCount(),
     totalBalance: wallets.reduce((sum, w) => sum + w.balance, 0),
     month: now.getMonth() + 1,
     monthIncome: thisMonth.filter((t) => t.amount > 0).reduce((s, t) => s + t.amount, 0),

@@ -35,11 +35,11 @@ export default function OverviewScreen() {
 
     return (
       <>
-        {/* TODO: mở màn hình Thông báo khi đã có */}
         <DashboardHeader
           displayName={data.displayName}
           unreadNotifications={data.unreadNotifications}
           onPressProfile={() => router.push('/profile')}
+          onPressNotifications={() => router.push('/notifications')}
         />
 
         <BalanceCard

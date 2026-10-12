@@ -53,7 +53,12 @@ export default function ProfileScreen() {
         <View style={styles.card}>
           <Row icon="person-outline" label="Thông tin cá nhân" />
           <Row icon="lock-closed-outline" label="Đổi mật khẩu" />
-          <Row icon="notifications-outline" label="Cài đặt thông báo" last />
+          <Row
+            icon="notifications-outline"
+            label="Cài đặt thông báo"
+            onPress={() => router.push('/notification-settings')}
+            last
+          />
         </View>
 
         <Pressable style={styles.signOut} onPress={handleSignOut} accessibilityRole="button">
@@ -65,14 +70,29 @@ export default function ProfileScreen() {
   );
 }
 
-/** Mục cài đặt — TODO: gắn màn hình tương ứng khi đã có */
-function Row({ icon, label, last }: { icon: keyof typeof Ionicons.glyphMap; label: string; last?: boolean }) {
+/** Mục cài đặt — TODO: gắn màn hình cho các mục chưa có onPress */
+function Row({
+  icon,
+  label,
+  last,
+  onPress,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  last?: boolean;
+  onPress?: () => void;
+}) {
   return (
-    <View style={[styles.row, !last && styles.rowDivider]}>
+    <Pressable
+      style={({ pressed }) => [styles.row, !last && styles.rowDivider, pressed && onPress && { opacity: 0.6 }]}
+      onPress={onPress}
+      disabled={!onPress}
+      accessibilityRole="button"
+    >
       <Ionicons name={icon} size={20} color={colors.textMuted} />
       <Text style={styles.rowLabel}>{label}</Text>
       <Ionicons name="chevron-forward" size={18} color={colors.border} />
-    </View>
+    </Pressable>
   );
 }
 

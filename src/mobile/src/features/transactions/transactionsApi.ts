@@ -1,3 +1,4 @@
+import { withBudgetAlert } from '@/features/notifications/budgetAlerts';
 import * as store from './mockStore';
 import type { Category, CategoryKind, Transaction, TransactionInput, Wallet, WalletType } from './types';
 
@@ -24,12 +25,12 @@ export async function getTransaction(id: string): Promise<Transaction | null> {
 
 export async function createTransaction(input: TransactionInput): Promise<Transaction> {
   await fakeDelay();
-  return store.add(input);
+  return withBudgetAlert(input.categoryId, () => store.add(input));
 }
 
 export async function updateTransaction(id: string, input: TransactionInput): Promise<Transaction> {
   await fakeDelay();
-  const t = store.update(id, input);
+  const t = await withBudgetAlert(input.categoryId, () => store.update(id, input));
   if (!t) throw new Error('NOT_FOUND');
   return t;
 }

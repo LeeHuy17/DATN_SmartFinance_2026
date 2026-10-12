@@ -5,6 +5,7 @@ import * as SplashScreen from 'expo-splash-screen';
 
 import { AnimatedSplash, SPLASH_BACKGROUND } from '@/components/AnimatedSplash';
 import { AuthProvider, useAuth } from '@/features/auth/AuthProvider';
+import { InAppBanner } from '@/features/notifications/components/InAppBanner';
 
 // Giữ splash tĩnh của hệ điều hành cho tới khi splash động (Lottie) sẵn sàng thay thế
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -58,11 +59,16 @@ function RootNavigator() {
             />
             <Stack.Screen name="transactions" />
             <Stack.Screen name="profile" />
+            <Stack.Screen name="notifications" />
+            <Stack.Screen name="notification-settings" />
             <Stack.Screen name="categories/index" />
             <Stack.Screen name="categories/edit" />
           </Stack.Protected>
         </Stack>
       )}
+
+      {/* Banner thông báo mới trong lúc dùng app (chỉ khi đã đăng nhập) */}
+      {!isLoading && isSignedIn && <InAppBanner />}
 
       {/* Chỉ ẩn splash khi animation đã chạy hết VÀ đã biết trạng thái đăng nhập */}
       {splashVisible && (
