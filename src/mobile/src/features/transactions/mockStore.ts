@@ -92,6 +92,22 @@ export const removeCategory = (id: string) => {
   categories = categories.filter((c) => c.id !== id);
 };
 
+// ---------- Ngân sách (theo danh mục chi tiêu, áp dụng cho mỗi tháng) ----------
+
+/** categoryId → hạn mức mỗi tháng (đồng) */
+let budgets: Record<string, number> = {
+  'c-food': 350_000,
+  'c-transport': 200_000,
+  'c-shopping': 900_000,
+};
+
+export const getBudgets = () => ({ ...budgets });
+
+/** Ghi đè toàn bộ ngân sách; hạn mức 0 = bỏ ngân sách của danh mục đó */
+export const setBudgets = (next: Record<string, number>) => {
+  budgets = Object.fromEntries(Object.entries(next).filter(([, v]) => v > 0));
+};
+
 // ---------- Giao dịch ----------
 
 type StoredTransaction = TransactionInput & { id: string };
