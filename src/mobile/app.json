@@ -12,6 +12,18 @@
       "expo-status-bar",
       "expo-localization",
       [
+        "expo-camera",
+        {
+          "cameraPermission": "Smart Finance cần camera để chụp hóa đơn và đọc số tiền giúp bạn."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Smart Finance cần truy cập ảnh để bạn chọn ảnh hóa đơn có sẵn."
+        }
+      ],
+      [
         "expo-splash-screen",
         {
           "image": "./assets/splash-static.png",

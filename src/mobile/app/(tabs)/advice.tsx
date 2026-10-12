@@ -76,7 +76,7 @@ export default function AdviceScreen() {
         return (
           <AdviceEmpty
             onAdd={() => router.push('/transaction/add')}
-            onScan={() => router.navigate('/scan')}
+            onScan={() => router.push('/receipt/scan')}
           />
         );
       case 'error':

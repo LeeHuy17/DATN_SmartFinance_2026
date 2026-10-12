@@ -50,6 +50,12 @@ function RootNavigator() {
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="transaction/add" />
             <Stack.Screen name="transaction/preview" />
+            <Stack.Screen
+              name="receipt/scan"
+              // Màn thường (không dùng fullScreenModal): trong modal, khoảng chừa an toàn có thể bằng 0
+              // khiến nút đóng / flash bị đẩy lên dưới thanh trạng thái
+              options={{ animation: 'slide_from_bottom' }}
+            />
             <Stack.Screen name="transactions" />
             <Stack.Screen name="profile" />
             <Stack.Screen name="categories/index" />

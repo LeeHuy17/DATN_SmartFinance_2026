@@ -18,6 +18,7 @@ import { FieldError } from '@/components/FieldError';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { SegmentedControl } from '@/components/SegmentedControl';
 import { TextField } from '@/components/TextField';
+import { takeOcrDraft, type OcrDraft } from '@/features/ocr/pendingReceipt';
 import { KIND_OPTIONS } from '@/features/transactions/categories';
 import { AmountInput } from '@/features/transactions/components/AmountInput';
 import { CategoryGrid } from '@/features/transactions/components/CategoryGrid';
@@ -31,7 +32,7 @@ import {
 } from '@/features/transactions/transactionsApi';
 import type { Category, CategoryKind, Transaction, Wallet } from '@/features/transactions/types';
 import { formatFullDate, maskDayInput } from '@/lib/format';
-import { colors, spacing } from '@/theme';
+import { colors, radius, spacing } from '@/theme';
 
 type Kind = CategoryKind;
 type Errors = { amount?: string; category?: string; date?: string; form?: string };
@@ -56,6 +57,8 @@ export default function AddTransactionScreen() {
   const [note, setNote] = useState('');
   const [errors, setErrors] = useState<Errors>({});
   const [saving, setSaving] = useState(false);
+  // Dữ liệu đọc được từ hóa đơn (mở từ màn Xem trước hóa đơn)
+  const [ocr, setOcr] = useState<OcrDraft | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -75,6 +78,13 @@ export default function AddTransactionScreen() {
         }
       } else {
         setWalletId(ws[0]?.id ?? null);
+        const draft = takeOcrDraft();
+        if (draft) {
+          setOcr(draft);
+          if (draft.total) setAmount(draft.total);
+          if (draft.date) setDay(formatFullDate(draft.date));
+          if (draft.categoryId) setCategoryId(draft.categoryId);
+        }
       }
       setLoading(false);
     })();
@@ -130,21 +140,24 @@ export default function AddTransactionScreen() {
       original &&
       (original.title === original.note || original.title === original.category.name);
     const input = {
-      title: original && !titleWasDerived ? original.title : trimmedNote || category.name,
+      // Hóa đơn quét được: dùng tên cửa hàng làm tên giao dịch
+      title: original && !titleWasDerived ? original.title : ocr?.merchant || trimmedNote || category.name,
       categoryId: category.id,
       walletId,
       amount: kind === 'expense' ? -amount : amount,
       date: date.toISOString(),
       note: trimmedNote || undefined,
-      source: original?.source ?? ('manual' as const),
+      source: original?.source ?? (ocr ? ('ocr' as const) : ('manual' as const)),
     };
 
     setSaving(true);
     try {
       if (id) await updateTransaction(id, input);
       else await createTransaction(input);
-      // Tổng quan và Lịch sử tự tải lại khi quay về
-      goBack();
+      // Tổng quan và Lịch sử tự tải lại khi quay về.
+      // Đi từ luồng quét: đóng cả màn quét, về thẳng Tổng quan để thấy giao dịch vừa lưu
+      if (ocr) router.dismissTo('/');
+      else goBack();
     } catch {
       setErrors({ form: 'Không lưu được giao dịch. Vui lòng thử lại.' });
     } finally {
@@ -166,6 +179,16 @@ export default function AddTransactionScreen() {
 
     return (
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+        {ocr && (
+          <View style={styles.ocrBanner}>
+            <Ionicons name="scan-outline" size={16} color={colors.primary} style={styles.ocrIcon} />
+            <Text style={styles.ocrText}>
+              {ocr.complete
+                ? `Đã đọc từ hóa đơn${ocr.merchant ? ` ${ocr.merchant}` : ''}. Kiểm tra lại trước khi lưu.`
+                : 'Đã điền phần đọc được từ hóa đơn. Hãy nhập các thông tin còn thiếu.'}
+            </Text>
+          </View>
+        )}
         <SegmentedControl options={KIND_OPTIONS} value={kind} onChange={changeKind} />
 
         <View style={styles.amount}>
@@ -303,4 +326,14 @@ const styles = StyleSheet.create({
   manageText: { fontSize: 14, fontWeight: '700', color: colors.primary },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   footer: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.md },
+  ocrBanner: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginBottom: spacing.md - 4,
+    padding: spacing.md - 4,
+    borderRadius: radius.md,
+    backgroundColor: colors.primarySoft,
+  },
+  ocrIcon: { marginTop: 1 },
+  ocrText: { flex: 1, fontSize: 13, lineHeight: 19, color: colors.primary },
 });
