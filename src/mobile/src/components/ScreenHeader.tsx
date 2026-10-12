@@ -8,16 +8,18 @@ type Props = {
   title: string;
   /** Nơi quay về khi không có màn hình trước (mở thẳng đường dẫn trên web) */
   fallbackHref?: Href;
+  /** Thay cách quay lại mặc định (vd. hỏi trước khi bỏ thay đổi chưa lưu) */
+  onBack?: () => void;
 };
 
 /** Thanh tiêu đề: nút quay lại bên trái, tiêu đề ở giữa */
-export function ScreenHeader({ title, fallbackHref = '/' }: Props) {
+export function ScreenHeader({ title, fallbackHref = '/', onBack }: Props) {
   const router = useRouter();
 
   return (
     <View style={styles.header}>
       <Pressable
-        onPress={() => (router.canGoBack() ? router.back() : router.replace(fallbackHref))}
+        onPress={onBack ?? (() => (router.canGoBack() ? router.back() : router.replace(fallbackHref)))}
         hitSlop={12}
         accessibilityRole="button"
         accessibilityLabel="Quay lại"

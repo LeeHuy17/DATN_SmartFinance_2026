@@ -1,4 +1,5 @@
 import { unreadCount } from '@/features/notifications/notificationsStore';
+import { getProfileNow, shortName } from '@/features/profile/profileStore';
 import * as store from '@/features/transactions/mockStore';
 import type { DashboardData } from './types';
 
@@ -22,8 +23,11 @@ export async function getDashboard(): Promise<DashboardData> {
     return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
   });
 
+  const profile = getProfileNow();
+
   return {
-    displayName: 'Văn An',
+    displayName: shortName(profile.fullName),
+    avatarUri: profile.avatarUri,
     unreadNotifications: unreadCount(),
     totalBalance: wallets.reduce((sum, w) => sum + w.balance, 0),
     month: now.getMonth() + 1,

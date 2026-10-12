@@ -4,6 +4,7 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 
 import { AnimatedSplash, SPLASH_BACKGROUND } from '@/components/AnimatedSplash';
+import { ToastHost } from '@/components/Toast';
 import { AuthProvider, useAuth } from '@/features/auth/AuthProvider';
 import { InAppBanner } from '@/features/notifications/components/InAppBanner';
 
@@ -59,6 +60,8 @@ function RootNavigator() {
             />
             <Stack.Screen name="transactions" />
             <Stack.Screen name="profile" />
+            <Stack.Screen name="personal-info" />
+            <Stack.Screen name="change-password" />
             <Stack.Screen name="notifications" />
             <Stack.Screen name="notification-settings" />
             <Stack.Screen name="categories/index" />
@@ -69,6 +72,7 @@ function RootNavigator() {
 
       {/* Banner thông báo mới trong lúc dùng app (chỉ khi đã đăng nhập) */}
       {!isLoading && isSignedIn && <InAppBanner />}
+      {!isLoading && <ToastHost />}
 
       {/* Chỉ ẩn splash khi animation đã chạy hết VÀ đã biết trạng thái đăng nhập */}
       {splashVisible && (

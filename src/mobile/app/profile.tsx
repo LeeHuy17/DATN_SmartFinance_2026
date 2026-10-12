@@ -1,29 +1,50 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useState } from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
+import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { showToast } from '@/components/Toast';
 import { useAuth } from '@/features/auth/AuthProvider';
-import { initials } from '@/features/dashboard/components/DashboardHeader';
-import { confirm } from '@/lib/confirm';
+import { getNotificationSettings } from '@/features/notifications/notificationsStore';
+import { Avatar } from '@/features/profile/components/Avatar';
+import { AvatarSheet } from '@/features/profile/components/AvatarSheet';
+import { getProfileNow, updateProfile, type Profile } from '@/features/profile/profileStore';
 import { colors, radius, spacing } from '@/theme';
 
-// TODO: lấy từ API hồ sơ người dùng khi backend sẵn sàng
-const PROFILE = { fullName: 'Nguyễn Văn An', email: 'an.nguyen@example.com' };
+const APP_VERSION = 'v1.0.0';
 
 export default function ProfileScreen() {
   const router = useRouter();
   const { signOut } = useAuth();
+  const [profile, setProfile] = useState<Profile>(getProfileNow);
+  const [pushOn, setPushOn] = useState(getNotificationSettings().push);
+  const [avatarSheet, setAvatarSheet] = useState(false);
+  const [confirmSignOut, setConfirmSignOut] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
+
+  // Quay lại từ Thông tin cá nhân / Cài đặt thông báo thì cập nhật ngay
+  useFocusEffect(
+    useCallback(() => {
+      setProfile(getProfileNow());
+      setPushOn(getNotificationSettings().push);
+    }, []),
+  );
+
+  const changeAvatar = async (uri: string | null) => {
+    try {
+      setProfile(await updateProfile({ avatarUri: uri }));
+      showToast(uri ? 'Đã cập nhật ảnh đại diện' : 'Đã xóa ảnh đại diện');
+    } catch {
+      showToast('Không lưu được ảnh. Vui lòng thử lại.', 'alert-circle');
+    }
+  };
 
   const handleSignOut = async () => {
-    const ok = await confirm({
-      title: 'Đăng xuất',
-      message: 'Bạn có muốn đăng xuất không?',
-      confirmText: 'Đăng xuất',
-      destructive: true,
-    });
+    setSigningOut(true);
     // Điều hướng gốc (Stack.Protected) tự chuyển về màn hình đăng nhập
-    if (ok) await signOut();
+    await signOut();
   };
 
   return (
@@ -35,63 +56,134 @@ export default function ProfileScreen() {
           accessibilityRole="button"
           accessibilityLabel="Quay lại"
         >
-          <Ionicons name="chevron-back" size={26} color={colors.text} />
+          <Ionicons name="chevron-back" size={24} color={colors.text} />
         </Pressable>
         <Text style={styles.headerTitle}>Hồ sơ</Text>
-        <View style={styles.headerSpacer} />
       </View>
 
-      <View style={styles.content}>
+      <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.identity}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{initials(PROFILE.fullName)}</Text>
+          <Pressable
+            onPress={() => setAvatarSheet(true)}
+            accessibilityRole="button"
+            accessibilityLabel="Đổi ảnh đại diện"
+          >
+            <Avatar name={profile.fullName} uri={profile.avatarUri} size={64} variant="soft" />
+            <View style={styles.cameraBadge}>
+              <Ionicons name="camera" size={12} color={colors.onPrimary} />
+            </View>
+          </Pressable>
+          <View style={styles.identityTexts}>
+            <Text style={styles.name}>{profile.fullName}</Text>
+            <Text style={styles.contact} numberOfLines={1}>
+              {profile.email}
+            </Text>
+            <Text style={styles.contact}>{profile.phone}</Text>
           </View>
-          <Text style={styles.name}>{PROFILE.fullName}</Text>
-          <Text style={styles.email}>{PROFILE.email}</Text>
+          <Pressable
+            style={({ pressed }) => [styles.editButton, pressed && styles.pressed]}
+            onPress={() => router.push('/personal-info')}
+            hitSlop={6}
+            accessibilityRole="button"
+            accessibilityLabel="Sửa thông tin cá nhân"
+          >
+            <Ionicons name="pencil" size={12} color={colors.primary} />
+            <Text style={styles.editText}>Sửa</Text>
+          </Pressable>
         </View>
 
-        <View style={styles.card}>
-          <Row icon="person-outline" label="Thông tin cá nhân" />
-          <Row icon="lock-closed-outline" label="Đổi mật khẩu" />
+        <Section title="TÀI KHOẢN">
+          <Row icon="person-outline" label="Thông tin cá nhân" onPress={() => router.push('/personal-info')} />
+          <Row icon="key-outline" label="Đổi mật khẩu" onPress={() => router.push('/change-password')} />
+          <Row icon="wallet-outline" label="Ví và danh mục" onPress={() => router.push('/wallets')} last />
+        </Section>
+
+        <Section title="ỨNG DỤNG">
           <Row
             icon="notifications-outline"
-            label="Cài đặt thông báo"
+            label="Thông báo"
+            value={pushOn ? 'Bật' : 'Tắt'}
             onPress={() => router.push('/notification-settings')}
-            last
           />
-        </View>
+          {/* Hiện chỉ hỗ trợ tiếng Việt và giao diện sáng */}
+          <Row icon="globe-outline" label="Ngôn ngữ" value="Tiếng Việt" />
+          <Row icon="moon-outline" label="Giao diện" value="Sáng" last />
+        </Section>
 
-        <Pressable style={styles.signOut} onPress={handleSignOut} accessibilityRole="button">
+        <Section title="HỖ TRỢ VÀ PHÁP LÝ">
+          {/* TODO: gắn trang Trung tâm trợ giúp / Điều khoản khi có nội dung */}
+          <Row icon="help-circle-outline" label="Trung tâm trợ giúp" />
+          <Row icon="document-text-outline" label="Điều khoản và chính sách" />
+          <Row icon="information-circle-outline" label="Giới thiệu ứng dụng" value={APP_VERSION} last />
+        </Section>
+
+        <Pressable
+          style={({ pressed }) => [styles.signOut, pressed && styles.pressed]}
+          onPress={() => setConfirmSignOut(true)}
+          accessibilityRole="button"
+        >
           <Ionicons name="log-out-outline" size={20} color={colors.danger} />
           <Text style={styles.signOutText}>Đăng xuất</Text>
         </Pressable>
-      </View>
+      </ScrollView>
+
+      <AvatarSheet
+        visible={avatarSheet}
+        hasAvatar={!!profile.avatarUri}
+        onClose={() => setAvatarSheet(false)}
+        onChange={changeAvatar}
+      />
+      <ConfirmDialog
+        visible={confirmSignOut}
+        icon="log-out-outline"
+        title="Đăng xuất khỏi Smart Finance?"
+        message="Dữ liệu của bạn vẫn được lưu an toàn. Bạn cần đăng nhập lại để tiếp tục sử dụng."
+        confirmText="Đăng xuất"
+        destructive
+        loading={signingOut}
+        onConfirm={handleSignOut}
+        onCancel={() => setConfirmSignOut(false)}
+      />
     </SafeAreaView>
   );
 }
 
-/** Mục cài đặt — TODO: gắn màn hình cho các mục chưa có onPress */
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <View style={styles.section}>
+      <Text style={styles.sectionTitle}>{title}</Text>
+      <View style={styles.card}>{children}</View>
+    </View>
+  );
+}
+
 function Row({
   icon,
   label,
+  value,
   last,
   onPress,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
+  value?: string;
   last?: boolean;
   onPress?: () => void;
 }) {
   return (
     <Pressable
-      style={({ pressed }) => [styles.row, !last && styles.rowDivider, pressed && onPress && { opacity: 0.6 }]}
+      style={({ pressed }) => [styles.row, !last && styles.rowDivider, pressed && onPress && styles.pressed]}
       onPress={onPress}
       disabled={!onPress}
-      accessibilityRole="button"
+      accessibilityRole={onPress ? 'button' : 'text'}
+      accessibilityLabel={value ? `${label}: ${value}` : label}
     >
-      <Ionicons name={icon} size={20} color={colors.textMuted} />
+      <View style={styles.rowIcon}>
+        <Ionicons name={icon} size={18} color={colors.primary} />
+      </View>
       <Text style={styles.rowLabel}>{label}</Text>
-      <Ionicons name="chevron-forward" size={18} color={colors.border} />
+      {value && <Text style={styles.rowValue}>{value}</Text>}
+      {onPress && <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />}
     </Pressable>
   );
 }
@@ -101,33 +193,71 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: spacing.sm,
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
   },
-  headerTitle: { flex: 1, textAlign: 'center', fontSize: 18, fontWeight: '700', color: colors.text },
-  headerSpacer: { width: 26 },
-  content: { flex: 1, paddingHorizontal: spacing.lg },
-  identity: { alignItems: 'center', marginTop: spacing.lg },
-  avatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+  headerTitle: { fontSize: 18, fontWeight: '700', color: colors.text },
+  content: { paddingHorizontal: spacing.md, paddingBottom: spacing.xl },
+  pressed: { opacity: 0.6 },
+  identity: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md - 4,
+    marginTop: spacing.sm,
+    padding: spacing.md,
+    borderRadius: radius.lg,
+    backgroundColor: colors.background,
+  },
+  cameraBadge: {
+    position: 'absolute',
+    right: -2,
+    bottom: -2,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: colors.background,
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarText: { fontSize: 28, fontWeight: '700', color: colors.onPrimary },
-  name: { marginTop: spacing.md - 4, fontSize: 20, fontWeight: '700', color: colors.text },
-  email: { marginTop: 2, fontSize: 14, color: colors.textMuted },
-  card: {
-    marginTop: spacing.lg,
-    paddingHorizontal: spacing.md,
-    borderRadius: radius.lg,
-    backgroundColor: colors.background,
+  identityTexts: { flex: 1 },
+  name: { fontSize: 18, fontWeight: '700', color: colors.text },
+  contact: { marginTop: 2, fontSize: 12, color: colors.textMuted },
+  editButton: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: spacing.sm + 2,
+    paddingVertical: 6,
+    borderRadius: radius.xl,
+    backgroundColor: colors.primarySoft,
   },
-  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md - 4, paddingVertical: 15 },
+  editText: { fontSize: 12, fontWeight: '700', color: colors.primary },
+  section: { marginTop: spacing.md + 4 },
+  sectionTitle: {
+    marginBottom: spacing.sm,
+    paddingHorizontal: spacing.xs,
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+    color: colors.textMuted,
+  },
+  card: { paddingHorizontal: spacing.md - 4, borderRadius: radius.lg, backgroundColor: colors.background },
+  row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md - 4, minHeight: 52, paddingVertical: 10 },
   rowDivider: { borderBottomWidth: 1, borderBottomColor: colors.divider },
+  rowIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: radius.md - 2,
+    backgroundColor: colors.primarySoft,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   rowLabel: { flex: 1, fontSize: 15, color: colors.text },
+  rowValue: { fontSize: 13, color: colors.textMuted },
   signOut: {
     marginTop: spacing.lg,
     height: 52,

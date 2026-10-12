@@ -103,22 +103,46 @@ export const markAllRead = () => {
   notifications = notifications.map((n) => ({ ...n, read: true }));
 };
 
-// ---------- Cài đặt: loại thông báo nào được gửi ----------
+// ---------- Cài đặt thông báo ----------
 
-/** Thông báo bảo mật luôn bật, không cho tắt */
+/** Loại thông báo người dùng bật/tắt được; thông báo bảo mật luôn bật */
 export type ConfigurableType = Exclude<NotificationType, 'security'>;
-let settings: Record<ConfigurableType, boolean> = { budget: true, ocr: true, advice: true, reminder: true };
 
-export const getNotificationSettings = () => ({ ...settings });
-export const setNotificationSetting = (type: ConfigurableType, enabled: boolean) => {
-  settings = { ...settings, [type]: enabled };
+export type NotificationSettings = Record<ConfigurableType, boolean> & {
+  /** Thông báo đẩy của hệ điều hành (khi không mở app) */
+  push: boolean;
+  /** Banner trượt xuống khi đang mở app */
+  banner: boolean;
+  /** Bản tin tổng kết tháng qua email */
+  email: boolean;
 };
 
-/** Tạo thông báo mới (nếu loại đó đang bật) và báo cho banner trong app */
-export const pushNotification = (input: Omit<AppNotification, 'id' | 'createdAt' | 'read'>) => {
+let settings: NotificationSettings = {
+  push: true,
+  banner: true,
+  budget: true,
+  ocr: true,
+  reminder: true,
+  advice: false,
+  email: false,
+};
+
+export const getNotificationSettings = () => ({ ...settings });
+export const setNotificationSetting = (key: keyof NotificationSettings, enabled: boolean) => {
+  settings = { ...settings, [key]: enabled };
+};
+
+/**
+ * Tạo thông báo mới (nếu loại đó đang bật) và báo cho banner trong app.
+ * `silent`: chỉ lưu vào Hộp thư, không hiện banner (khi màn hình đã tự báo kết quả).
+ */
+export const pushNotification = (
+  input: Omit<AppNotification, 'id' | 'createdAt' | 'read'>,
+  { silent = false }: { silent?: boolean } = {},
+) => {
   if (input.type !== 'security' && !settings[input.type]) return null;
   const n: AppNotification = { ...input, id: `n${Date.now()}`, createdAt: new Date().toISOString(), read: false };
   notifications = [...notifications, n];
-  listeners.forEach((fn) => fn(n));
+  if (settings.banner && !silent) listeners.forEach((fn) => fn(n));
   return n;
 };
