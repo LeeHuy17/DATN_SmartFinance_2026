@@ -1,7 +1,7 @@
 import type { ComponentProps } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Tabs } from 'expo-router';
+import { Tabs, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 import { colors, spacing } from '@/theme';
@@ -18,11 +18,12 @@ const ICONS: Record<string, IconName> = {
   wallets: 'wallet-outline',
 };
 
-/** Tab nổi ở giữa thanh tab */
+/** Tab nổi ở giữa thanh tab: mở màn quét hóa đơn toàn màn hình thay vì chuyển tab */
 const CENTER_TAB = 'scan';
 
 export function TabBar({ state, descriptors, navigation }: TabBarProps) {
   const insets = useSafeAreaInsets();
+  const router = useRouter();
 
   return (
     <View style={[styles.bar, { paddingBottom: Math.max(insets.bottom, spacing.sm) }]}>
@@ -46,15 +47,15 @@ export function TabBar({ state, descriptors, navigation }: TabBarProps) {
             <Pressable
               key={route.key}
               style={styles.tab}
-              onPress={onPress}
+              onPress={() => router.push('/receipt/scan')}
               accessibilityRole="button"
-              accessibilityState={{ selected: focused }}
               accessibilityLabel={label}
             >
               <View style={styles.centerButton}>
                 <Ionicons name={icon} size={28} color={colors.onPrimary} />
               </View>
-              <Text style={[styles.label, styles.labelActive]}>{label}</Text>
+              {/* Chữ xám như tab thường: nút tròn xanh đã đủ nổi bật, tránh hai nhãn xanh đứng cạnh nhau */}
+              <Text style={styles.label}>{label}</Text>
             </Pressable>
           );
         }
