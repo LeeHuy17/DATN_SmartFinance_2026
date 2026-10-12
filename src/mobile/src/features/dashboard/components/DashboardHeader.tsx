@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
+import { Avatar } from '@/features/profile/components/Avatar';
 import { colors, spacing } from '@/theme';
 
 function greeting(hour = new Date().getHours()) {
@@ -10,18 +11,9 @@ function greeting(hour = new Date().getHours()) {
   return 'Chào buổi tối';
 }
 
-/** "Nguyễn Văn An" / "Văn An" → "VA" */
-export function initials(name: string) {
-  return name
-    .trim()
-    .split(/\s+/)
-    .slice(-2)
-    .map((w) => w[0]?.toUpperCase() ?? '')
-    .join('');
-}
-
 type Props = {
   displayName: string;
+  avatarUri?: string | null;
   unreadNotifications: number;
   onPressProfile?: () => void;
   onPressNotifications?: () => void;
@@ -30,6 +22,7 @@ type Props = {
 /** Trái: avatar + lời chào (chạm để mở Hồ sơ). Phải: chuông thông báo */
 export function DashboardHeader({
   displayName,
+  avatarUri,
   unreadNotifications,
   onPressProfile,
   onPressNotifications,
@@ -42,9 +35,7 @@ export function DashboardHeader({
         accessibilityRole="button"
         accessibilityLabel={`Hồ sơ của ${displayName}`}
       >
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>{initials(displayName)}</Text>
-        </View>
+        <Avatar name={displayName} uri={avatarUri} size={SIZE} />
         <View style={styles.texts}>
           <Text style={styles.greeting}>{greeting()}</Text>
           <Text style={styles.name} numberOfLines={1}>
@@ -77,15 +68,6 @@ const SIZE = 44;
 const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   profile: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.md - 4 },
-  avatar: {
-    width: SIZE,
-    height: SIZE,
-    borderRadius: SIZE / 2,
-    backgroundColor: colors.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarText: { fontSize: 16, fontWeight: '700', color: colors.onPrimary },
   texts: { flex: 1 },
   greeting: { fontSize: 13, color: colors.textMuted },
   name: { fontSize: 19, fontWeight: '700', color: colors.text },

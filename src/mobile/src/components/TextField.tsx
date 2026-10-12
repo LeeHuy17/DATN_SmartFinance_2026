@@ -1,4 +1,4 @@
-import { forwardRef, useState } from 'react';
+import { forwardRef, useState, type ReactNode } from 'react';
 import {
   Platform,
   Pressable,
@@ -22,10 +22,12 @@ type Props = TextInputProps & {
   hint?: string;
   /** Hiện nút con mắt để ẩn/hiện mật khẩu (dùng cùng secureTextEntry) */
   passwordToggle?: boolean;
+  /** Nội dung nhỏ bên phải nhãn (vd. "Đã sửa") */
+  labelAccessory?: ReactNode;
 };
 
 export const TextField = forwardRef<TextInput, Props>(function TextField(
-  { label, error, hint, passwordToggle, secureTextEntry, style, onFocus, onBlur, ...inputProps },
+  { label, error, hint, passwordToggle, labelAccessory, secureTextEntry, style, onFocus, onBlur, ...inputProps },
   ref,
 ) {
   const [focused, setFocused] = useState(false);
@@ -33,7 +35,10 @@ export const TextField = forwardRef<TextInput, Props>(function TextField(
 
   return (
     <View style={styles.field}>
-      <Text style={styles.label}>{label}</Text>
+      <View style={styles.labelRow}>
+        <Text style={styles.label}>{label}</Text>
+        {labelAccessory}
+      </View>
       <View>
         <TextInput
           ref={ref}
@@ -90,8 +95,8 @@ const webNoOutline = Platform.select({
 
 const styles = StyleSheet.create({
   field: { marginTop: spacing.md },
+  labelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.sm },
   label: {
-    marginBottom: spacing.sm,
     fontSize: 13,
     fontWeight: '600',
     color: colors.text,

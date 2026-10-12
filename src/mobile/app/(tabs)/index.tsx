@@ -37,6 +37,7 @@ export default function OverviewScreen() {
       <>
         <DashboardHeader
           displayName={data.displayName}
+          avatarUri={data.avatarUri}
           unreadNotifications={data.unreadNotifications}
           onPressProfile={() => router.push('/profile')}
           onPressNotifications={() => router.push('/notifications')}
