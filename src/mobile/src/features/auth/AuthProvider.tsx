@@ -1,6 +1,15 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 
-import { clearToken, getToken, setToken } from '@/lib/storage';
+import { setOnSessionExpired } from '@/lib/api/client';
+import {
+  clearRefreshToken,
+  clearToken,
+  getRefreshToken,
+  getToken,
+  setToken,
+} from '@/lib/storage';
+
+import { logout } from './loginApi';
 
 type AuthContextValue = {
   isLoading: boolean;
@@ -20,6 +29,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .then(setTokenState)
       .catch(() => setTokenState(null))
       .finally(() => setIsLoading(false));
+    // Refresh token hết hạn hoặc bị thu hồi: quay về màn hình đăng nhập
+    setOnSessionExpired(() => setTokenState(null));
+    return () => setOnSessionExpired(null);
   }, []);
 
   const signIn = async (newToken: string) => {
@@ -28,7 +40,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
-    await clearToken();
+    const refresh = await getRefreshToken();
+    if (refresh) await logout(refresh);
+    await Promise.all([clearToken(), clearRefreshToken()]);
     setTokenState(null);
   };
 

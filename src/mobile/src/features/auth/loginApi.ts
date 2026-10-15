@@ -1,5 +1,5 @@
-// TODO: thay hàm giả lập bằng apiFetch khi backend có endpoint đăng nhập.
-// Giữ nguyên chữ ký hàm để màn hình đăng nhập không phải sửa.
+import { ApiError, apiFetch } from '@/lib/api/client';
+import { setRefreshToken } from '@/lib/storage';
 
 export class InvalidCredentialsError extends Error {
   constructor() {
@@ -7,12 +7,27 @@ export class InvalidCredentialsError extends Error {
   }
 }
 
-const fakeDelay = (ms = 600) => new Promise((resolve) => setTimeout(resolve, ms));
+type TokenPair = { access: string; refresh: string };
 
-/** Đăng nhập, trả về access token */
+/** Đăng nhập, lưu refresh token và trả về access token */
 export async function login(email: string, password: string): Promise<string> {
-  await fakeDelay();
-  // Giả lập: mọi email/mật khẩu đều đăng nhập được, trừ mật khẩu "sai" để xem trạng thái lỗi
-  if (password === 'sai') throw new InvalidCredentialsError();
-  return `mock-token-${email}`;
+  try {
+    const { access, refresh } = await apiFetch<TokenPair>('/auth/login/', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    }, { auth: false });
+    await setRefreshToken(refresh);
+    return access;
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 401) throw new InvalidCredentialsError();
+    throw e;
+  }
+}
+
+/** Đưa refresh token vào blacklist trên server; lỗi mạng thì bỏ qua vì token ở máy vẫn bị xoá */
+export async function logout(refresh: string): Promise<void> {
+  await apiFetch('/auth/logout/', {
+    method: 'POST',
+    body: JSON.stringify({ refresh }),
+  }).catch(() => undefined);
 }
