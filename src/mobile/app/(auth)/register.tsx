@@ -18,7 +18,11 @@ import { PrimaryButton } from '@/components/PrimaryButton';
 import { TextField } from '@/components/TextField';
 import { PasswordChecklist } from '@/features/auth/components/PasswordChecklist';
 import { checkPasswordRules } from '@/features/auth/passwordRules';
-import { EmailTakenError, registerAccount } from '@/features/auth/registerApi';
+import {
+  EmailTakenError,
+  registerAccount,
+  WeakPasswordError,
+} from '@/features/auth/registerApi';
 import { colors, spacing } from '@/theme';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -71,6 +75,7 @@ export default function RegisterScreen() {
     } catch (e) {
       if (e instanceof EmailTakenError)
         setFieldErrors({ email: 'Email này đã được dùng cho một tài khoản khác.' });
+      else if (e instanceof WeakPasswordError) setError(e.message);
       else setError('Không tạo được tài khoản. Vui lòng thử lại sau.');
     } finally {
       setSubmitting(false);
