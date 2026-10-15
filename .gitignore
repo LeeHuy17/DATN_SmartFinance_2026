@@ -8,3 +8,10 @@ node_modules/
 .expo/
 .env
 expo-env.d.ts
+
+# Backend (Django)
+venv/
+.venv/
+__pycache__/
+*.pyc
+staticfiles/
