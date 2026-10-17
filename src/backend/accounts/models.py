@@ -29,9 +29,16 @@ class UserManager(BaseUserManager):
 
 
 class User(AbstractBaseUser, PermissionsMixin):
+    class Gender(models.TextChoices):
+        MALE = "male", "Nam"
+        FEMALE = "female", "Nữ"
+        OTHER = "other", "Khác"
+
     email = models.EmailField(unique=True)
     full_name = models.CharField(max_length=150, blank=True)
     phone = models.CharField(max_length=20, blank=True)
+    birth_date = models.DateField(null=True, blank=True)
+    gender = models.CharField(max_length=6, choices=Gender.choices, blank=True)
     currency = models.CharField(max_length=3, default="VND")
 
     is_active = models.BooleanField(default=True)

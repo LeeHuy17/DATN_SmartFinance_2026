@@ -20,6 +20,8 @@ INSTALLED_APPS = [
     "corsheaders",
     "accounts",
     "transactions",
+    "categories.apps.CategoriesConfig",
+    "wallets",
 ]
 
 MIDDLEWARE = [
