@@ -1,14 +1,23 @@
-export const formatCurrency = (amount: number) =>
-  new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(amount);
+/** 1500000 → "1.500.000" (bỏ dấu, làm tròn đồng) */
+const groupVnd = (amount: number) =>
+  Math.round(Math.abs(amount))
+    .toString()
+    .replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+
+/**
+ * Tiền VND theo chuẩn vi-VN: 1500000 → "1.500.000 ₫". Hermes trên Android có thể thiếu dữ liệu locale
+ * cho Intl.NumberFormat nên tự định dạng. Màn hình theo thiết kế dùng formatVnd ("1.500.000đ").
+ */
+export const formatCurrency = (amount: number) => `${amount < 0 ? '-' : ''}${groupVnd(amount)} ₫`;
 
 export const formatDate = (date: Date | string) =>
   new Intl.DateTimeFormat('vi-VN').format(new Date(date));
 
 /** Định dạng tiền theo thiết kế: 15890000 → "15.890.000đ" (không phụ thuộc Intl của máy) */
-export const formatVnd = (amount: number) =>
-  `${Math.round(Math.abs(amount))
-    .toString()
-    .replace(/\B(?=(\d{3})+(?!\d))/g, '.')}đ`;
+export const formatVnd = (amount: number) => `${groupVnd(amount)}đ`;
+
+/** Số dư ví: giữ dấu âm (thẻ tín dụng đang nợ) → "-1.200.000đ" */
+export const formatBalance = (amount: number) => `${amount < 0 ? '-' : ''}${formatVnd(amount)}`;
 
 /** Có dấu: -65000 → "-65.000đ", 15000000 → "+15.000.000đ" */
 export const formatSignedVnd = (amount: number) => `${amount < 0 ? '-' : '+'}${formatVnd(amount)}`;

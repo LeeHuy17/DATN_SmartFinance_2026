@@ -45,7 +45,7 @@ export default function OverviewScreen() {
 
         <BalanceCard
           totalBalance={data.totalBalance}
-          walletCount={data.wallets.length}
+          walletCount={data.walletCount}
           month={data.month}
           monthIncome={data.monthIncome}
           monthExpense={data.monthExpense}

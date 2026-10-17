@@ -1,4 +1,4 @@
-import * as store from '@/features/transactions/mockStore';
+import * as store from '@/features/transactions/localStore';
 import { MIN_EXPENSES_FOR_ADVICE, buildSummary, type SpendingSummary } from './summary';
 
 export type Advice = {

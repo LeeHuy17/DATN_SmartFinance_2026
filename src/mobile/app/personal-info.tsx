@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -13,28 +13,41 @@ import { AvatarSheet } from '@/features/profile/components/AvatarSheet';
 import { BirthDateSheet } from '@/features/profile/components/BirthDateSheet';
 import {
   GENDER_OPTIONS,
+  getProfile,
   getProfileNow,
   updateProfile,
+  type Profile,
   type ProfileInput,
 } from '@/features/profile/profileStore';
+import { getFieldErrors } from '@/lib/api/client';
 import { confirm } from '@/lib/confirm';
 import { colors, radius, spacing } from '@/theme';
 
 /** 2001-08-15 → 15/08/2001 */
 const formatBirthDate = (iso: string | null) => (iso ? iso.split('-').reverse().join('/') : '');
 
-/** Số điện thoại Việt Nam: 10 chữ số, bắt đầu bằng 0 (cho phép dấu cách) */
-const isValidPhone = (phone: string) => /^0\d{9}$/.test(phone.replace(/\s/g, ''));
+/** Số điện thoại Việt Nam: 10 chữ số, bắt đầu bằng 0 (cho phép dấu cách); để trống cũng được */
+const isValidPhone = (phone: string) => !phone.trim() || /^0\d{9}$/.test(phone.replace(/\s/g, ''));
+
+const toForm = ({ email: _email, ...rest }: Profile): ProfileInput => rest;
 
 const FIELDS: (keyof ProfileInput)[] = ['avatarUri', 'fullName', 'phone', 'birthDate', 'gender'];
 
 export default function PersonalInfoScreen() {
   const router = useRouter();
-  const [saved] = useState(getProfileNow);
-  const [form, setForm] = useState<ProfileInput>(() => {
-    const { email: _email, ...rest } = saved;
-    return rest;
-  });
+  const [saved, setSaved] = useState(getProfileNow);
+  const [form, setForm] = useState<ProfileInput>(() => toForm(saved));
+
+  // Mở thẳng màn này (chưa qua Hồ sơ) thì chưa có dữ liệu: tải từ server
+  useEffect(() => {
+    if (saved.email) return;
+    getProfile()
+      .then((p) => {
+        setSaved(p);
+        setForm(toForm(p));
+      })
+      .catch(() => showToast('Không tải được thông tin. Vui lòng thử lại.', 'alert-circle'));
+  }, [saved.email]);
   const [errors, setErrors] = useState<{ fullName?: string; phone?: string }>({});
   const [saving, setSaving] = useState(false);
   const [avatarSheet, setAvatarSheet] = useState(false);
@@ -77,8 +90,13 @@ export default function PersonalInfoScreen() {
       showToast('Đã lưu thông tin cá nhân');
       if (router.canGoBack()) router.back();
       else router.replace('/profile');
-    } catch {
-      showToast('Không lưu được. Vui lòng thử lại.', 'alert-circle');
+    } catch (e) {
+      // Lỗi 400 theo trường: họ tên, số điện thoại hiện dưới ô nhập; ngày sinh, giới tính báo bằng toast
+      const f = getFieldErrors(e);
+      setErrors({ fullName: f.full_name, phone: f.phone });
+      if (!f.full_name && !f.phone) {
+        showToast(f.birth_date ?? f.gender ?? f.form ?? 'Không lưu được. Vui lòng thử lại.', 'alert-circle');
+      }
     } finally {
       setSaving(false);
     }
@@ -100,7 +118,7 @@ export default function PersonalInfoScreen() {
             accessibilityLabel="Đổi ảnh đại diện"
           >
             <View>
-              <Avatar name={saved.fullName} uri={form.avatarUri} size={88} variant="soft" />
+              <Avatar name={saved.fullName || saved.email} uri={form.avatarUri} size={88} variant="soft" />
               <View style={styles.cameraBadge}>
                 <Ionicons name="camera" size={14} color={colors.onPrimary} />
               </View>

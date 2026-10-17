@@ -9,7 +9,11 @@ import { ScreenHeader } from '@/components/ScreenHeader';
 import { TextField } from '@/components/TextField';
 import { showToast } from '@/components/Toast';
 import { useAuth } from '@/features/auth/AuthProvider';
-import { changePassword, WrongPasswordError } from '@/features/profile/profileStore';
+import {
+  changePassword,
+  NewPasswordRejectedError,
+  WrongPasswordError,
+} from '@/features/profile/profileStore';
 import { confirm } from '@/lib/confirm';
 import { colors, spacing } from '@/theme';
 
@@ -47,6 +51,7 @@ export default function ChangePasswordScreen() {
       else router.replace('/profile');
     } catch (e) {
       if (e instanceof WrongPasswordError) setCurrentError('Mật khẩu hiện tại không đúng.');
+      else if (e instanceof NewPasswordRejectedError) showToast(e.message, 'alert-circle');
       else showToast('Không đổi được mật khẩu. Vui lòng thử lại.', 'alert-circle');
     } finally {
       setSubmitting(false);
@@ -56,7 +61,7 @@ export default function ChangePasswordScreen() {
   const handleForgot = async () => {
     const ok = await confirm({
       title: 'Quên mật khẩu hiện tại?',
-      message: 'Bạn sẽ được đăng xuất để khôi phục mật khẩu bằng mã xác thực gửi qua email hoặc số điện thoại.',
+      message: 'Bạn sẽ được đăng xuất để khôi phục mật khẩu bằng mã xác thực gửi qua email.',
       confirmText: 'Tiếp tục',
     });
     if (!ok) return;

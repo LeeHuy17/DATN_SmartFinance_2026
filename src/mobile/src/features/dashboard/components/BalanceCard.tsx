@@ -1,6 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-import { formatVnd } from '@/lib/format';
+import { formatBalance, formatVnd } from '@/lib/format';
 import { colors, radius, spacing } from '@/theme';
 
 type Props = {
@@ -16,7 +16,7 @@ export function BalanceCard({ totalBalance, walletCount, month, monthIncome, mon
     <View style={styles.card}>
       <Text style={styles.label}>Tổng số dư ({walletCount} ví)</Text>
       <Text style={styles.total} adjustsFontSizeToFit numberOfLines={1}>
-        {formatVnd(totalBalance)}
+        {formatBalance(totalBalance)}
       </Text>
 
       <View style={styles.stats}>

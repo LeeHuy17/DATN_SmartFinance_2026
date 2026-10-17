@@ -1,12 +1,18 @@
 import type { Ionicons } from '@expo/vector-icons';
 
-export type WalletType = 'cash' | 'bank' | 'ewallet';
+export type WalletType = 'cash' | 'bank' | 'ewallet' | 'credit' | 'savings';
 
+/** Số tiền là số nguyên đồng, đã quy đổi từ chuỗi Decimal của server (xem lib/money.ts) */
 export type Wallet = {
   id: string;
   name: string;
   type: WalletType;
+  /** Số dư hiện tại do server tính */
   balance: number;
+  initialBalance: number;
+  /** Có cộng vào tổng tài sản không */
+  includeInTotal: boolean;
+  isArchived: boolean;
 };
 
 export type CategoryKind = 'expense' | 'income';

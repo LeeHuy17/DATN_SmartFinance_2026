@@ -1,10 +1,13 @@
 import type { IconName, WalletType } from '@/features/transactions/types';
 import { colors } from '@/theme';
 
+/** Khớp Wallet.Kind ở backend (wallets/models.py) */
 export const WALLET_TYPES: { value: WalletType; label: string }[] = [
   { value: 'cash', label: 'Tiền mặt' },
   { value: 'bank', label: 'Ngân hàng' },
   { value: 'ewallet', label: 'Ví điện tử' },
+  { value: 'credit', label: 'Thẻ tín dụng' },
+  { value: 'savings', label: 'Tiết kiệm' },
 ];
 
 export const walletTypeLabel = (t: WalletType) => WALLET_TYPES.find((x) => x.value === t)?.label ?? '';
@@ -12,6 +15,8 @@ export const walletTypeLabel = (t: WalletType) => WALLET_TYPES.find((x) => x.val
 /** Biểu tượng và màu ô vuông của ví trong danh sách */
 export const WALLET_ICON: Record<WalletType, { icon: IconName; bg: string; fg: string }> = {
   cash: { icon: 'wallet-outline', bg: colors.primarySoft, fg: colors.primary },
-  bank: { icon: 'wallet-outline', bg: colors.primarySoft, fg: colors.primary },
-  ewallet: { icon: 'wallet-outline', bg: colors.warmSoft, fg: colors.warm },
+  bank: { icon: 'business-outline', bg: colors.infoSoft, fg: colors.walletBank },
+  ewallet: { icon: 'phone-portrait-outline', bg: colors.warmSoft, fg: colors.warm },
+  credit: { icon: 'card-outline', bg: colors.dangerSoft, fg: colors.danger },
+  savings: { icon: 'trending-up-outline', bg: colors.primarySoft, fg: colors.primary },
 };

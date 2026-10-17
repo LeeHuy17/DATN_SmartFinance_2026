@@ -9,7 +9,18 @@ import {
   setToken,
 } from '@/lib/storage';
 
+import { clearAllForDemo as clearNotifications } from '@/features/notifications/notificationsStore';
+import { clearProfile } from '@/features/profile/profileStore';
+import { resetLocalData } from '@/features/transactions/localStore';
+
 import { logout } from './loginApi';
+
+/** Xóa dữ liệu của tài khoản hiện tại đang giữ trong bộ nhớ, để tài khoản đăng nhập sau không thấy */
+const clearUserData = () => {
+  clearProfile();
+  resetLocalData();
+  clearNotifications();
+};
 
 type AuthContextValue = {
   isLoading: boolean;
@@ -30,7 +41,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .catch(() => setTokenState(null))
       .finally(() => setIsLoading(false));
     // Refresh token hết hạn hoặc bị thu hồi: quay về màn hình đăng nhập
-    setOnSessionExpired(() => setTokenState(null));
+    setOnSessionExpired(() => {
+      clearUserData();
+      setTokenState(null);
+    });
     return () => setOnSessionExpired(null);
   }, []);
 
@@ -43,6 +57,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const refresh = await getRefreshToken();
     if (refresh) await logout(refresh);
     await Promise.all([clearToken(), clearRefreshToken()]);
+    clearUserData();
     setTokenState(null);
   };
 

@@ -1,7 +1,7 @@
-// Hồ sơ người dùng (giả lập, sống trong bộ nhớ).
-// TODO: thay bằng apiFetch khi backend có endpoint hồ sơ / đổi mật khẩu.
-// Giữ nguyên chữ ký hàm để màn hình không phải sửa.
+// Hồ sơ người dùng lấy từ /auth/me/. Ảnh đại diện chỉ lưu trên máy vì server chưa có chỗ chứa ảnh.
 import { pushNotification } from '@/features/notifications/notificationsStore';
+import { apiFetch, getFieldErrors } from '@/lib/api/client';
+import { getAvatarUri, setAvatarUri, setRefreshToken, setToken } from '@/lib/storage';
 
 export type Gender = 'male' | 'female' | 'other';
 
@@ -12,7 +12,8 @@ export type Profile = {
   phone: string;
   /** YYYY-MM-DD */
   birthDate: string | null;
-  gender: Gender;
+  /** null: chưa chọn */
+  gender: Gender | null;
   /** Ảnh đại diện; null thì hiện chữ viết tắt của tên */
   avatarUri: string | null;
 };
@@ -31,47 +32,98 @@ export class WrongPasswordError extends Error {
   }
 }
 
-const fakeDelay = (ms = 600) => new Promise((resolve) => setTimeout(resolve, ms));
+/** Server từ chối mật khẩu mới (quá phổ biến, giống email...); message là lý do */
+export class NewPasswordRejectedError extends Error {}
 
-let profile: Profile = {
-  fullName: 'Nguyễn Văn An',
-  email: 'an.nguyen@example.com',
-  phone: '0901 234 567',
-  birthDate: '1998-08-15',
-  gender: 'male',
+type ApiUser = {
+  id: number;
+  email: string;
+  full_name: string;
+  phone: string;
+  birth_date: string | null;
+  gender: Gender | '';
+};
+
+const EMPTY: Profile = {
+  fullName: '',
+  email: '',
+  phone: '',
+  birthDate: null,
+  gender: null,
   avatarUri: null,
 };
 
-/** Đọc ngay (không chờ) để vẽ màn hình lần đầu không bị nháy */
-export const getProfileNow = (): Profile => ({ ...profile });
+let cached: Profile | null = null;
+
+const toProfile = (u: ApiUser, avatarUri: string | null): Profile => ({
+  fullName: u.full_name,
+  email: u.email,
+  phone: u.phone,
+  birthDate: u.birth_date,
+  gender: u.gender || null,
+  avatarUri,
+});
+
+const save = async (u: ApiUser) => {
+  cached = toProfile(u, await getAvatarUri(u.id).catch(() => null));
+  return { ...cached };
+};
+
+/** Bản đã tải gần nhất (đọc ngay, không chờ) để vẽ màn hình lần đầu không bị nháy */
+export const getProfileNow = (): Profile => ({ ...(cached ?? EMPTY) });
 
 export async function getProfile(): Promise<Profile> {
-  await fakeDelay(200);
-  return getProfileNow();
+  return save(await apiFetch<ApiUser>('/auth/me/'));
 }
 
+/** Lỗi 400 (vd. ngày sinh ở tương lai) đọc bằng getFieldErrors(e) với khóa full_name, phone, birth_date */
 export async function updateProfile(input: Partial<ProfileInput>): Promise<Profile> {
-  await fakeDelay();
-  profile = { ...profile, ...input };
-  return getProfileNow();
+  const { avatarUri, ...fields } = input;
+  const body = {
+    full_name: fields.fullName,
+    phone: fields.phone,
+    birth_date: fields.birthDate,
+    gender: fields.gender === undefined ? undefined : (fields.gender ?? ''),
+  };
+  const hasFields = Object.values(body).some((v) => v !== undefined);
+  const user = hasFields
+    ? await apiFetch<ApiUser>('/auth/me/', { method: 'PATCH', body: JSON.stringify(body) })
+    : await apiFetch<ApiUser>('/auth/me/');
+  if (avatarUri !== undefined) await setAvatarUri(user.id, avatarUri);
+  return save(user);
 }
 
-/** "Nguyễn Văn An" → "Văn An": tên gọi ngắn ở lời chào */
-export const shortName = (fullName: string) => fullName.trim().split(/\s+/).slice(-2).join(' ');
+/** "Nguyễn Văn An" → "Văn An": tên gọi ngắn ở lời chào; chưa có tên thì lấy phần trước @ của email */
+export const shortName = (fullName: string, email = '') =>
+  fullName.trim().split(/\s+/).slice(-2).join(' ') || email.split('@')[0];
 
 export async function changePassword(current: string, next: string): Promise<void> {
-  await fakeDelay(800);
-  // Giả lập: mật khẩu hiện tại "sai" để xem trạng thái lỗi (giống màn đăng nhập)
-  if (current === 'sai') throw new WrongPasswordError();
-  void next;
+  try {
+    const tokens = await apiFetch<{ access: string; refresh: string }>('/auth/change-password/', {
+      method: 'POST',
+      body: JSON.stringify({ current_password: current, new_password: next }),
+    });
+    // Server thu hồi mọi phiên cũ và cấp token mới cho máy này để không bị đăng xuất
+    await Promise.all([setToken(tokens.access), setRefreshToken(tokens.refresh)]);
+  } catch (e) {
+    const errors = getFieldErrors(e);
+    if (errors.current_password) throw new WrongPasswordError();
+    if (errors.new_password) throw new NewPasswordRejectedError(errors.new_password);
+    throw e;
+  }
   // Màn đổi mật khẩu đã tự hiện thông báo thành công, chỉ cần lưu vào Hộp thư
   pushNotification(
     {
       type: 'security',
       title: 'Mật khẩu đã được thay đổi',
-      body: 'Nếu không phải bạn, hãy đổi mật khẩu ngay.',
+      body: 'Các thiết bị khác đã được đăng xuất. Nếu không phải bạn, hãy đổi mật khẩu ngay.',
       link: '/profile',
     },
     { silent: true },
   );
 }
+
+/** Xóa hồ sơ đã tải khi đăng xuất */
+export const clearProfile = () => {
+  cached = null;
+};
