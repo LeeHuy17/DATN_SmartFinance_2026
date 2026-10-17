@@ -1,3 +1,8 @@
+import logging
+
+from django.contrib.auth import get_user_model
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -5,9 +10,15 @@ from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 
+from . import password_reset
 from .serializers import (
-    LoginSerializer, LogoutSerializer, RegisterSerializer, UserSerializer,
+    LoginSerializer, LogoutSerializer, PasswordResetConfirmSerializer,
+    PasswordResetRequestSerializer, PasswordResetVerifySerializer,
+    RegisterSerializer, UserSerializer,
 )
+
+logger = logging.getLogger(__name__)
+User = get_user_model()
 
 
 class RegisterView(generics.CreateAPIView):
@@ -37,4 +48,75 @@ class LogoutView(APIView):
                 {"detail": "Token không hợp lệ hoặc đã hết hạn."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class PasswordResetBaseView(APIView):
+    permission_classes = (permissions.AllowAny,)
+    # Bỏ qua header Authorization để token cũ/hết hạn trên máy không làm request bị 401
+    authentication_classes = ()
+
+
+class PasswordResetRequestView(PasswordResetBaseView):
+    """Bước 1: gửi mã OTP qua email"""
+
+    def post(self, request):
+        serializer = PasswordResetRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = User.objects.filter(
+            email=serializer.validated_data["email"], is_active=True
+        ).first()
+        if user:
+            code = password_reset.issue_code(user)
+            if code:
+                try:
+                    password_reset.send_code_email(user, code)
+                except Exception:
+                    logger.exception("Gửi email đặt lại mật khẩu thất bại: %s", user.email)
+                    return Response(
+                        {"detail": "Không gửi được email. Vui lòng thử lại sau."},
+                        status=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    )
+        # Luôn trả cùng một câu để không lộ email nào đã đăng ký
+        return Response({"detail": "Nếu email đã đăng ký, mã xác thực đã được gửi tới email."})
+
+
+class PasswordResetVerifyView(PasswordResetBaseView):
+    """Bước 2: kiểm tra mã OTP, trả về reset_token cho bước 3"""
+
+    def post(self, request):
+        serializer = PasswordResetVerifySerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = User.objects.filter(
+            email=serializer.validated_data["email"], is_active=True
+        ).first()
+        if not user or not password_reset.verify_code(user, serializer.validated_data["code"]):
+            return Response(
+                {"detail": "Mã xác thực không đúng hoặc đã hết hạn."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return Response({"reset_token": password_reset.make_reset_token(user)})
+
+
+class PasswordResetConfirmView(PasswordResetBaseView):
+    """Bước 3: đặt mật khẩu mới và đăng xuất mọi thiết bị"""
+
+    def post(self, request):
+        serializer = PasswordResetConfirmSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = password_reset.get_user_from_reset_token(serializer.validated_data["reset_token"])
+        if user is None:
+            return Response(
+                {"reset_token": ["Phiên đặt lại mật khẩu đã hết hạn. Vui lòng làm lại từ đầu."]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        new_password = serializer.validated_data["new_password"]
+        try:
+            validate_password(new_password, user)
+        except ValidationError as e:
+            return Response({"new_password": e.messages}, status=status.HTTP_400_BAD_REQUEST)
+
+        user.set_password(new_password)
+        user.save(update_fields=["password"])
+        password_reset.revoke_refresh_tokens(user)
         return Response(status=status.HTTP_204_NO_CONTENT)

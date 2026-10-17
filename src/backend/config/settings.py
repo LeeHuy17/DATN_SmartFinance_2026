@@ -102,3 +102,19 @@ STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# Email: gửi qua Gmail SMTP khi đã cấu hình EMAIL_HOST_USER, nếu chưa thì in email ra log (dev)
+EMAIL_HOST_USER = os.environ.get("EMAIL_HOST_USER", "")
+# App Password Google hiển thị dạng "abcd efgh ijkl mnop", bỏ khoảng trắng cho chắc
+EMAIL_HOST_PASSWORD = os.environ.get("EMAIL_HOST_PASSWORD", "").replace(" ", "")
+if EMAIL_HOST_USER:
+    EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+    EMAIL_HOST = "smtp.gmail.com"
+    EMAIL_PORT = 587
+    EMAIL_USE_TLS = True
+    EMAIL_TIMEOUT = 15
+else:
+    EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+DEFAULT_FROM_EMAIL = os.environ.get(
+    "DEFAULT_FROM_EMAIL", f"Smart Finance <{EMAIL_HOST_USER or 'no-reply@smartfinance.local'}>"
+)

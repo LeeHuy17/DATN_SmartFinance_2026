@@ -50,3 +50,22 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self):
         return self.email
+
+
+class PasswordResetCode(models.Model):
+    """Mã OTP quên mật khẩu gửi qua email; chỉ lưu bản băm của mã"""
+
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="password_reset_codes"
+    )
+    code_hash = models.CharField(max_length=64)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    attempts = models.PositiveSmallIntegerField(default=0)
+    used_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+
+    def __str__(self):
+        return f"{self.user} - {self.created_at:%d/%m/%Y %H:%M}"
