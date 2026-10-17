@@ -46,3 +46,19 @@ class LoginSerializer(TokenObtainPairSerializer):
 
 class LogoutSerializer(serializers.Serializer):
     refresh = serializers.CharField()
+
+
+class PasswordResetRequestSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
+    def validate_email(self, value):
+        return value.strip().lower()
+
+
+class PasswordResetVerifySerializer(PasswordResetRequestSerializer):
+    code = serializers.RegexField(r"^\d{6}$", error_messages={"invalid": "Mã gồm 6 chữ số."})
+
+
+class PasswordResetConfirmSerializer(serializers.Serializer):
+    reset_token = serializers.CharField()
+    new_password = serializers.CharField(write_only=True, style={"input_type": "password"})

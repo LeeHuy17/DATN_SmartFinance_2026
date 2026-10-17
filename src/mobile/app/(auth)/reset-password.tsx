@@ -8,7 +8,11 @@ import { TextField } from '@/components/TextField';
 import { ForgotPasswordLayout } from '@/features/auth/components/ForgotPasswordLayout';
 import { PasswordChecklist } from '@/features/auth/components/PasswordChecklist';
 import { checkPasswordRules } from '@/features/auth/passwordRules';
-import { resetPassword } from '@/features/auth/passwordResetApi';
+import {
+  resetPassword,
+  ResetSessionExpiredError,
+  WeakNewPasswordError,
+} from '@/features/auth/passwordResetApi';
 import { spacing } from '@/theme';
 
 export default function ResetPasswordScreen() {
@@ -34,8 +38,11 @@ export default function ResetPasswordScreen() {
     try {
       await resetPassword(token, password);
       router.replace('/reset-success');
-    } catch {
-      setError('Không đặt lại được mật khẩu. Vui lòng thử lại.');
+    } catch (e) {
+      if (e instanceof ResetSessionExpiredError)
+        setError('Phiên đặt lại mật khẩu đã hết hạn. Vui lòng quay lại và gửi mã mới.');
+      else if (e instanceof WeakNewPasswordError) setError(e.message);
+      else setError('Không đặt lại được mật khẩu. Vui lòng thử lại.');
     } finally {
       setSubmitting(false);
     }
