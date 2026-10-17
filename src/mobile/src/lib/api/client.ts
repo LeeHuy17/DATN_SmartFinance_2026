@@ -15,6 +15,22 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Lỗi 400 của DRF dạng { name: ["Bạn đã có ví với tên này."] } → { name: "Bạn đã có ví với tên này." }.
+ * non_field_errors và detail gom vào khóa "form". Lỗi khác 400 trả về {}.
+ */
+export function getFieldErrors(e: unknown): Record<string, string> {
+  if (!(e instanceof ApiError) || e.status !== 400 || !e.data || typeof e.data !== 'object') return {};
+  const errors: Record<string, string> = {};
+  for (const [key, value] of Object.entries(e.data as Record<string, unknown>)) {
+    const message = Array.isArray(value) ? value[0] : value;
+    if (typeof message === 'string') {
+      errors[key === 'non_field_errors' || key === 'detail' ? 'form' : key] = message;
+    }
+  }
+  return errors;
+}
+
 // AuthProvider đăng ký hàm này để biết khi phiên đăng nhập hết hạn hẳn (refresh cũng hỏng)
 let onSessionExpired: (() => void) | null = null;
 export const setOnSessionExpired = (handler: (() => void) | null) => {

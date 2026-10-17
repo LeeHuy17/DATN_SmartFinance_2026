@@ -1,3 +1,5 @@
+import { Ionicons } from '@expo/vector-icons';
+
 import { colors } from '@/theme';
 import type { CategoryKind, IconName } from './types';
 
@@ -13,7 +15,11 @@ export const CATEGORY_COLORS = [
   '#5E6A65',
 ] as const;
 
-/** Bộ biểu tượng chọn cho danh mục (theo thiết kế, 12 biểu tượng) */
+/**
+ * Bộ biểu tượng chọn cho danh mục: 12 biểu tượng theo thiết kế, thêm 6 biểu tượng để phủ hết
+ * danh mục mặc định của server (backend/categories/defaults.py, ví dụ "Đầu tư") và đủ 3 hàng.
+ * Server lưu thẳng tên Ionicons nên khóa icon chính là tên icon.
+ */
 export const CATEGORY_ICONS: IconName[] = [
   'cafe-outline',
   'cart-outline',
@@ -27,7 +33,19 @@ export const CATEGORY_ICONS: IconName[] = [
   'flash-outline',
   'pricetag-outline',
   'wallet-outline',
+  'trending-up-outline',
+  'restaurant-outline',
+  'bus-outline',
+  'shirt-outline',
+  'medkit-outline',
+  'school-outline',
 ];
+
+export const FALLBACK_ICON: IconName = 'pricetag-outline';
+
+/** Khóa icon từ server → icon thật; khóa lạ (dữ liệu cũ, gõ tay trong admin) thì dùng icon mặc định */
+export const resolveIcon = (key: string): IconName =>
+  key in Ionicons.glyphMap ? (key as IconName) : FALLBACK_ICON;
 
 /** Nền nhạt của một màu danh mục (độ mờ ~13%) */
 export const softColor = (hex: string) => `${hex}22`;

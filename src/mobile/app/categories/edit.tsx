@@ -21,15 +21,9 @@ import { ScreenHeader } from '@/components/ScreenHeader';
 import { TextField } from '@/components/TextField';
 import { CATEGORY_COLORS, CATEGORY_ICONS, softColor } from '@/features/transactions/categories';
 import { CategoryIcon } from '@/features/transactions/components/CategoryIcon';
-import {
-  CategoryInUseError,
-  DuplicateNameError,
-  createCategory,
-  deleteCategory,
-  getCategory,
-  updateCategory,
-  type CategoryWithCount,
-} from '@/features/transactions/transactionsApi';
+import * as categoriesApi from '@/features/categories/categoriesApi';
+import { getCategory, type CategoryWithCount } from '@/features/transactions/transactionsApi';
+import { getFieldErrors } from '@/lib/api/client';
 import type { CategoryKind, IconName } from '@/features/transactions/types';
 import { colors, radius, spacing } from '@/theme';
 
@@ -60,17 +54,19 @@ export default function CategoryEditScreen() {
 
   useEffect(() => {
     if (!params.id) return;
-    getCategory(params.id).then((c) => {
-      if (!c) setNotFound(true);
-      else {
-        setOriginal(c);
-        setName(c.name);
-        setColor(c.color);
-        setIcon(c.icon);
-        setVisible(!c.hidden);
-      }
-      setLoading(false);
-    });
+    getCategory(params.id)
+      .then((c) => {
+        if (!c) setNotFound(true);
+        else {
+          setOriginal(c);
+          setName(c.name);
+          setColor(c.color);
+          setIcon(c.icon);
+          setVisible(!c.hidden);
+        }
+      })
+      .catch(() => setNotFound(true))
+      .finally(() => setLoading(false));
   }, [params.id]);
 
   const kind: CategoryKind = original?.kind ?? (params.kind === 'income' ? 'income' : 'expense');
@@ -86,15 +82,14 @@ export default function CategoryEditScreen() {
     setSaving(true);
     setFormError(null);
     try {
-      if (original) await updateCategory(original.id, input);
-      else await createCategory(input);
+      if (original) await categoriesApi.update(original.id, input);
+      else await categoriesApi.create(input);
       goBack();
     } catch (e) {
-      if (e instanceof DuplicateNameError) {
-        setNameError(`Đã có danh mục ${kind === 'expense' ? 'chi tiêu' : 'thu nhập'} tên "${trimmed}".`);
-      } else {
-        setFormError('Không lưu được danh mục. Vui lòng thử lại.');
-      }
+      // Lỗi 400 theo trường: tên trùng hiện dưới ô Tên, lỗi khác hiện cuối form
+      const errors = getFieldErrors(e);
+      if (errors.name) setNameError(errors.name);
+      else setFormError(errors.form ?? errors.color ?? errors.icon ?? 'Không lưu được danh mục. Vui lòng thử lại.');
     } finally {
       setSaving(false);
     }
@@ -104,16 +99,12 @@ export default function CategoryEditScreen() {
     if (!original) return;
     setDeleting(true);
     try {
-      await deleteCategory(original.id);
+      await categoriesApi.remove(original.id);
       setConfirmingDelete(false);
       goBack();
-    } catch (e) {
+    } catch {
       setConfirmingDelete(false);
-      setFormError(
-        e instanceof CategoryInUseError
-          ? 'Danh mục đã có giao dịch nên chỉ có thể ẩn, không thể xóa.'
-          : 'Không xóa được danh mục. Vui lòng thử lại.',
-      );
+      setFormError('Không xóa được danh mục. Vui lòng thử lại.');
     } finally {
       setDeleting(false);
     }
@@ -128,7 +119,7 @@ export default function CategoryEditScreen() {
         {loading ? (
           <ActivityIndicator style={styles.loading} color={colors.primary} />
         ) : (
-          <Text style={styles.notFound}>Không tìm thấy danh mục. Có thể danh mục đã bị xóa.</Text>
+          <Text style={styles.notFound}>Không tải được danh mục. Có thể danh mục đã bị xóa hoặc mất kết nối mạng.</Text>
         )}
       </SafeAreaView>
     );

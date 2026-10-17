@@ -10,7 +10,7 @@ import { useAuth } from '@/features/auth/AuthProvider';
 import { getNotificationSettings } from '@/features/notifications/notificationsStore';
 import { Avatar } from '@/features/profile/components/Avatar';
 import { AvatarSheet } from '@/features/profile/components/AvatarSheet';
-import { getProfileNow, updateProfile, type Profile } from '@/features/profile/profileStore';
+import { getProfile, getProfileNow, updateProfile, type Profile } from '@/features/profile/profileStore';
 import { colors, radius, spacing } from '@/theme';
 
 const APP_VERSION = 'v1.0.0';
@@ -29,6 +29,10 @@ export default function ProfileScreen() {
     useCallback(() => {
       setProfile(getProfileNow());
       setPushOn(getNotificationSettings().push);
+      // Tải lại từ server; lỗi mạng thì giữ bản đã tải trước đó
+      getProfile()
+        .then(setProfile)
+        .catch(() => undefined);
     }, []),
   );
 
@@ -68,17 +72,17 @@ export default function ProfileScreen() {
             accessibilityRole="button"
             accessibilityLabel="Đổi ảnh đại diện"
           >
-            <Avatar name={profile.fullName} uri={profile.avatarUri} size={64} variant="soft" />
+            <Avatar name={profile.fullName || profile.email} uri={profile.avatarUri} size={64} variant="soft" />
             <View style={styles.cameraBadge}>
               <Ionicons name="camera" size={12} color={colors.onPrimary} />
             </View>
           </Pressable>
           <View style={styles.identityTexts}>
-            <Text style={styles.name}>{profile.fullName}</Text>
+            <Text style={styles.name}>{profile.fullName || 'Chưa đặt tên'}</Text>
             <Text style={styles.contact} numberOfLines={1}>
               {profile.email}
             </Text>
-            <Text style={styles.contact}>{profile.phone}</Text>
+            {!!profile.phone && <Text style={styles.contact}>{profile.phone}</Text>}
           </View>
           <Pressable
             style={({ pressed }) => [styles.editButton, pressed && styles.pressed]}

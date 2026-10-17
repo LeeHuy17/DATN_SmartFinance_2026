@@ -226,3 +226,64 @@ class PasswordResetTests(APITestCase):
             "reset_token": "gia-mao", "new_password": "NewStrong456!",
         })
         self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+
+
+class ProfileAndChangePasswordTests(APITestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(email=EMAIL, password=PASSWORD)
+        self.client.force_authenticate(self.user)
+
+    def test_update_birth_date_and_gender(self):
+        res = self.client.patch(reverse("me"), {"birth_date": "1998-08-15", "gender": "female"})
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertEqual(res.data["birth_date"], "1998-08-15")
+        self.assertEqual(res.data["gender"], "female")
+
+    def test_birth_date_in_future_rejected(self):
+        future = (timezone.localdate() + timedelta(days=1)).isoformat()
+        res = self.client.patch(reverse("me"), {"birth_date": future})
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("birth_date", res.data)
+
+    def test_invalid_gender_rejected(self):
+        res = self.client.patch(reverse("me"), {"gender": "unknown"})
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_change_password_success_returns_new_tokens(self):
+        old_refresh = self.client.post(
+            reverse("login"), {"email": EMAIL, "password": PASSWORD}
+        ).data["refresh"]
+        res = self.client.post(reverse("change_password"), {
+            "current_password": PASSWORD, "new_password": "NewStrong456!",
+        })
+        self.assertEqual(res.status_code, status.HTTP_200_OK)
+        self.assertIn("access", res.data)
+        self.assertIn("refresh", res.data)
+        self.user.refresh_from_db()
+        self.assertTrue(self.user.check_password("NewStrong456!"))
+        # Phiên cũ bị thu hồi, refresh token mới vẫn dùng được
+        self.client.force_authenticate(None)
+        url = reverse("token_refresh")
+        self.assertEqual(self.client.post(url, {"refresh": old_refresh}).status_code, 401)
+        self.assertEqual(self.client.post(url, {"refresh": res.data["refresh"]}).status_code, 200)
+
+    def test_change_password_wrong_current(self):
+        res = self.client.post(reverse("change_password"), {
+            "current_password": "sai-mat-khau", "new_password": "NewStrong456!",
+        })
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("current_password", res.data)
+
+    def test_change_password_same_as_current(self):
+        res = self.client.post(reverse("change_password"), {
+            "current_password": PASSWORD, "new_password": PASSWORD,
+        })
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("new_password", res.data)
+
+    def test_change_password_weak(self):
+        res = self.client.post(reverse("change_password"), {
+            "current_password": PASSWORD, "new_password": "123",
+        })
+        self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("new_password", res.data)

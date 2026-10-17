@@ -1,20 +1,24 @@
 import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import type { Wallet, WalletType } from '@/features/transactions/types';
-import { formatVnd } from '@/lib/format';
+import { formatBalance } from '@/lib/format';
 import { colors, radius, spacing } from '@/theme';
 
 const TYPE_LABEL: Record<WalletType, string> = {
   cash: 'Số dư',
   bank: 'Ngân hàng',
   ewallet: 'Ví điện tử',
+  credit: 'Thẻ tín dụng',
+  savings: 'Tiết kiệm',
 };
 
-// Tiền mặt: thẻ trắng viền mảnh; ngân hàng và ví điện tử: thẻ màu, chữ trắng
+// Tiền mặt, tiết kiệm: thẻ trắng viền mảnh; các loại còn lại: thẻ màu, chữ trắng
 const TYPE_STYLE: Record<WalletType, { bg: string; fg: string; border?: string }> = {
   cash: { bg: colors.background, fg: colors.text, border: colors.divider },
   bank: { bg: colors.walletBank, fg: colors.onPrimary },
   ewallet: { bg: colors.walletEwallet, fg: colors.onPrimary },
+  credit: { bg: colors.text, fg: colors.onPrimary },
+  savings: { bg: colors.primarySoft, fg: colors.primary, border: colors.primarySoft },
 };
 
 export function WalletList({ wallets }: { wallets: Wallet[] }) {
@@ -50,7 +54,7 @@ export function WalletList({ wallets }: { wallets: Wallet[] }) {
               numberOfLines={1}
               adjustsFontSizeToFit
             >
-              {formatVnd(wallet.balance)}
+              {formatBalance(wallet.balance)}
             </Text>
           </View>
         );

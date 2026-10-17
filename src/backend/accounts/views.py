@@ -12,7 +12,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 
 from . import password_reset
 from .serializers import (
-    LoginSerializer, LogoutSerializer, PasswordResetConfirmSerializer,
+    ChangePasswordSerializer, LoginSerializer, LogoutSerializer, PasswordResetConfirmSerializer,
     PasswordResetRequestSerializer, PasswordResetVerifySerializer,
     RegisterSerializer, UserSerializer,
 )
@@ -35,6 +35,20 @@ class MeView(generics.RetrieveUpdateAPIView):
 
     def get_object(self):
         return self.request.user
+
+
+class ChangePasswordView(APIView):
+    """Đổi mật khẩu khi đang đăng nhập: thu hồi mọi phiên cũ, cấp cặp token mới cho máy hiện tại"""
+
+    def post(self, request):
+        serializer = ChangePasswordSerializer(data=request.data, context={"request": request})
+        serializer.is_valid(raise_exception=True)
+        user = request.user
+        user.set_password(serializer.validated_data["new_password"])
+        user.save(update_fields=["password"])
+        password_reset.revoke_refresh_tokens(user)
+        refresh = RefreshToken.for_user(user)
+        return Response({"access": str(refresh.access_token), "refresh": str(refresh)})
 
 
 class LogoutView(APIView):

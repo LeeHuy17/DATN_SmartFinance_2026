@@ -1,4 +1,4 @@
-// Thông báo trong app (giả lập, sống trong bộ nhớ).
+// Thông báo trong app (sống trong bộ nhớ, mất khi tải lại app).
 // TODO: thay bằng API thông báo + push notification khi có backend.
 import type { Href } from 'expo-router';
 
@@ -16,62 +16,8 @@ export type AppNotification = {
   link?: Href;
 };
 
-/** Mốc thời gian cách hiện tại `days` ngày, lúc hh:mm */
-const at = (days: number, hh: number, mm: number) => {
-  const d = new Date();
-  d.setDate(d.getDate() - days);
-  d.setHours(hh, mm, 0, 0);
-  return d.toISOString();
-};
-
-let notifications: AppNotification[] = [
-  {
-    id: 'n1',
-    type: 'budget',
-    // Khớp số liệu mẫu: ngân sách Ăn uống 350.000đ, đã chi 242.000đ
-    title: 'Đã dùng hơn nửa ngân sách Ăn uống',
-    body: 'Bạn đã dùng 69% ngân sách tháng (242.000đ / 350.000đ).',
-    createdAt: at(0, 9, 12),
-    read: false,
-    link: '/advice',
-  },
-  {
-    id: 'n2',
-    type: 'ocr',
-    title: 'Đã đọc xong hóa đơn Co.opmart',
-    body: 'Kiểm tra và xác nhận để lưu giao dịch 312.500đ.',
-    createdAt: at(0, 8, 47),
-    read: false,
-    link: '/transactions',
-  },
-  {
-    id: 'n3',
-    type: 'advice',
-    title: 'Lời khuyên mới từ trợ lý AI',
-    body: 'Chi tiêu ăn uống đang tăng so với tuần trước.',
-    createdAt: at(1, 20, 5),
-    read: false,
-    link: '/advice',
-  },
-  {
-    id: 'n4',
-    type: 'reminder',
-    title: 'Nhắc ghi chép chi tiêu',
-    body: 'Hôm nay bạn chưa ghi giao dịch nào.',
-    createdAt: at(10, 21, 0),
-    read: true,
-    link: '/transaction/add',
-  },
-  {
-    id: 'n5',
-    type: 'security',
-    title: 'Mật khẩu đã được thay đổi',
-    body: 'Nếu không phải bạn, hãy đổi mật khẩu ngay.',
-    createdAt: at(14, 10, 30),
-    read: true,
-    link: '/profile',
-  },
-];
+// Chỉ chứa thông báo phát sinh trong phiên dùng app (vượt ngân sách, đổi mật khẩu...)
+let notifications: AppNotification[] = [];
 
 // ---------- Theo dõi thông báo mới (để hiện banner trong app) ----------
 type Listener = (n: AppNotification) => void;
@@ -94,7 +40,7 @@ export const markRead = (id: string) => {
   notifications = notifications.map((n) => (n.id === id ? { ...n, read: true } : n));
 };
 
-/** Chỉ dùng cho giả lập trong bản dev: xóa hết để xem màn Hộp thư trống */
+/** Xóa hết thông báo: khi đăng xuất, và trong bản dev để xem màn Hộp thư trống */
 export const clearAllForDemo = () => {
   notifications = [];
 };
