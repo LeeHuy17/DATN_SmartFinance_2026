@@ -1,6 +1,5 @@
 import { apiFetch } from '@/lib/api/client';
 import { parseMoney, toMoneyString } from '@/lib/money';
-import * as store from '@/features/transactions/localStore';
 import type { Wallet, WalletType } from '@/features/transactions/types';
 
 type ApiWallet = {
@@ -51,28 +50,21 @@ const toBody = (input: Partial<WalletInput>) =>
     is_archived: input.isArchived,
   });
 
-const remember = (w: Wallet) => {
-  store.cacheWallets([w]);
-  return w;
-};
-
 /** Mặc định chỉ lấy ví đang dùng; includeArchived để lấy cả ví đã lưu trữ */
 export async function list({ includeArchived = false } = {}): Promise<Wallet[]> {
   const data = await apiFetch<ApiWallet[]>(`/wallets/${includeArchived ? '?include_archived=1' : ''}`);
-  const wallets = data.map(toWallet);
-  store.cacheWallets(wallets);
-  return wallets;
+  return data.map(toWallet);
 }
 
 /** Lỗi 400 (vd. trùng tên ví) đọc bằng getFieldErrors(e).name */
 export async function create(input: WalletInput): Promise<Wallet> {
   const data = await apiFetch<ApiWallet>('/wallets/', { method: 'POST', body: toBody(input) });
-  return remember(toWallet(data));
+  return toWallet(data);
 }
 
 export async function update(id: string, input: Partial<WalletInput>): Promise<Wallet> {
   const data = await apiFetch<ApiWallet>(`/wallets/${id}/`, { method: 'PATCH', body: toBody(input) });
-  return remember(toWallet(data));
+  return toWallet(data);
 }
 
 /** Lưu trữ: ẩn ví khỏi danh sách và tổng tài sản nhưng vẫn giữ dữ liệu; false để dùng lại */

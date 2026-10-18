@@ -23,7 +23,7 @@ import { CATEGORY_COLORS, CATEGORY_ICONS, softColor } from '@/features/transacti
 import { CategoryIcon } from '@/features/transactions/components/CategoryIcon';
 import * as categoriesApi from '@/features/categories/categoriesApi';
 import { getCategory, type CategoryWithCount } from '@/features/transactions/transactionsApi';
-import { getFieldErrors } from '@/lib/api/client';
+import { ApiError, apiDetail, getFieldErrors } from '@/lib/api/client';
 import type { CategoryKind, IconName } from '@/features/transactions/types';
 import { colors, radius, spacing } from '@/theme';
 
@@ -102,9 +102,14 @@ export default function CategoryEditScreen() {
       await categoriesApi.remove(original.id);
       setConfirmingDelete(false);
       goBack();
-    } catch {
+    } catch (e) {
       setConfirmingDelete(false);
-      setFormError('Không xóa được danh mục. Vui lòng thử lại.');
+      // 409: danh mục đã có giao dịch trên server, chỉ được ẩn
+      setFormError(
+        e instanceof ApiError && e.status === 409
+          ? apiDetail(e) ?? 'Danh mục đang có giao dịch, hãy ẩn thay vì xóa.'
+          : 'Không xóa được danh mục. Vui lòng thử lại.',
+      );
     } finally {
       setDeleting(false);
     }

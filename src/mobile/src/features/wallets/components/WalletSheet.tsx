@@ -11,7 +11,8 @@ import { AmountInput } from '@/features/transactions/components/AmountInput';
 import type { Wallet, WalletType } from '@/features/transactions/types';
 import * as walletsApi from '@/features/wallets/walletsApi';
 import { WALLET_TYPES } from '@/features/wallets/walletTypes';
-import { getFieldErrors } from '@/lib/api/client';
+import { ApiError, apiDetail, getFieldErrors } from '@/lib/api/client';
+import { confirm } from '@/lib/confirm';
 import { colors, spacing } from '@/theme';
 
 // react-native-web tô núm công tắc theo activeThumbColor (prop riêng của web), thiếu thì ra màu xanh ngọc
@@ -87,6 +88,33 @@ export function WalletSheet({ visible, wallet, onClose, onSaved }: Props) {
       onSaved();
     } catch (e) {
       showServerErrors(e, 'Không cập nhật được ví. Vui lòng thử lại.');
+    } finally {
+      setArchiving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!wallet) return;
+    const ok = await confirm({
+      title: `Xóa ví "${wallet.name}"?`,
+      message: 'Chỉ xóa được ví chưa có giao dịch. Thao tác này không hoàn tác được.',
+      confirmText: 'Xóa',
+      destructive: true,
+    });
+    if (!ok) return;
+    setArchiving(true);
+    setErrors({});
+    try {
+      await walletsApi.remove(wallet.id);
+      onSaved();
+    } catch (e) {
+      // 409: ví đang có giao dịch, server gợi ý lưu trữ thay vì xóa
+      setErrors({
+        form:
+          e instanceof ApiError && e.status === 409
+            ? apiDetail(e) ?? 'Ví đang có giao dịch, hãy lưu trữ thay vì xóa.'
+            : 'Không xóa được ví. Vui lòng thử lại.',
+      });
     } finally {
       setArchiving(false);
     }
@@ -182,6 +210,18 @@ export function WalletSheet({ visible, wallet, onClose, onSaved }: Props) {
           Ví lưu trữ được ẩn khỏi danh sách và không tính vào tổng tài sản, dữ liệu vẫn được giữ.
         </Text>
       )}
+      {editing && (
+        <Pressable
+          style={styles.archive}
+          onPress={handleDelete}
+          disabled={archiving || saving}
+          hitSlop={8}
+          accessibilityRole="button"
+        >
+          <Ionicons name="trash-outline" size={16} color={colors.danger} />
+          <Text style={[styles.archiveText, styles.deleteText]}>Xóa ví</Text>
+        </Pressable>
+      )}
 
       {errors.form && <FieldError message={errors.form} />}
     </BottomSheet>
@@ -198,5 +238,6 @@ const styles = StyleSheet.create({
   toggleText: { marginTop: 2, fontSize: 12, lineHeight: 17, color: colors.textMuted },
   archive: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: spacing.lg, alignSelf: 'flex-start' },
   archiveText: { fontSize: 14, fontWeight: '600', color: colors.textMuted },
+  deleteText: { color: colors.danger },
   archiveHint: { marginTop: spacing.xs, fontSize: 12, lineHeight: 17, color: colors.textMuted },
 });

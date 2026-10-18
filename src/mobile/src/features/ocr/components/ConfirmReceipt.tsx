@@ -24,11 +24,13 @@ import { CategoryGrid } from '@/features/transactions/components/CategoryGrid';
 import { parseDayInput } from '@/features/transactions/filters';
 import {
   createTransaction,
+  listAllTransactions,
   listCategories,
-  listTransactions,
   listWallets,
 } from '@/features/transactions/transactionsApi';
 import type { Category, Transaction, Wallet } from '@/features/transactions/types';
+import { getFieldErrors } from '@/lib/api/client';
+import { addDays, toYmd } from '@/lib/date';
 import { formatDayMonth, formatFullDate, formatVnd, maskDayInput } from '@/lib/format';
 import { colors, radius, spacing } from '@/theme';
 
@@ -59,12 +61,17 @@ export function ConfirmReceipt({ uri, fields, onRetake, onCancel, onSaved }: Pro
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    Promise.all([listWallets(), listCategories('expense'), listTransactions()]).then(([ws, cs, ts]) => {
-      setWallets(ws);
-      setWalletId((w) => w ?? ws[0]?.id ?? null);
-      setCategories(cs.filter((c) => !c.hidden || c.id === fields.categoryId));
-      setExisting(ts);
-    });
+    Promise.all([listWallets(), listCategories('expense')])
+      .then(([ws, cs]) => {
+        setWallets(ws);
+        setWalletId((w) => w ?? ws[0]?.id ?? null);
+        setCategories(cs.filter((c) => !c.hidden || c.id === fields.categoryId));
+      })
+      .catch(() => setError('Không tải được ví và danh mục. Vui lòng thử lại.'));
+    // Khoản chi 90 ngày gần đây để cảnh báo hóa đơn trùng; lỗi thì chỉ mất cảnh báo, vẫn lưu được
+    listAllTransactions({ kind: 'expense', date_from: toYmd(addDays(new Date(), -90)) })
+      .then(setExisting)
+      .catch(() => undefined);
   }, [fields.categoryId]);
 
   const date = parseDayInput(day);
@@ -85,25 +92,22 @@ export function ConfirmReceipt({ uri, fields, onRetake, onCancel, onSaved }: Pro
     if (!category) return setError('Chọn danh mục cho giao dịch.');
     if (!walletId) return setError('Chọn ví thanh toán.');
 
-    // Giữ giờ hiện tại cho ngày đã chọn (hóa đơn thường không ghi giờ)
-    const now = new Date();
-    date.setHours(now.getHours(), now.getMinutes(), 0, 0);
-    if (date.getTime() > now.getTime()) date.setTime(now.getTime());
-
     setError(null);
     setSaving(true);
     try {
+      // Tên cửa hàng lưu làm ghi chú: hiện thành tên giao dịch và dùng để dò hóa đơn trùng
       await createTransaction({
-        title: merchant.trim() || category.name,
         categoryId: category.id,
         walletId,
-        amount: -amount,
-        date: date.toISOString(),
+        amount,
+        date: toYmd(date),
+        note: merchant.trim(),
         source: 'ocr',
       });
       onSaved();
-    } catch {
-      setError('Không lưu được giao dịch. Vui lòng thử lại.');
+    } catch (e) {
+      const f = getFieldErrors(e);
+      setError(f.wallet ?? f.category ?? f.amount ?? f.date ?? f.form ?? 'Không lưu được giao dịch. Vui lòng thử lại.');
     } finally {
       setSaving(false);
     }

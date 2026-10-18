@@ -1,17 +1,21 @@
 import * as store from '@/features/transactions/localStore';
+import { getTransactionSummary } from '@/features/transactions/transactionQuery';
+import { toYmd } from '@/lib/date';
 import { formatVnd } from '@/lib/format';
 import { pushNotification } from './notificationsStore';
 
 /** Các mốc cảnh báo (% hạn mức) */
 const THRESHOLDS = [100, 80];
 
-const spentThisMonth = (categoryId: string) => {
+/** Số đã chi của danh mục từ đầu tháng, server tính trên giao dịch đã lưu */
+const spentThisMonth = async (categoryId: string) => {
   const now = new Date();
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  return store
-    .getAll()
-    .filter((t) => t.category.id === categoryId && t.amount < 0 && new Date(t.date) >= monthStart)
-    .reduce((s, t) => s - t.amount, 0);
+  const { expense } = await getTransactionSummary({
+    category: categoryId,
+    kind: 'expense',
+    date_from: toYmd(new Date(now.getFullYear(), now.getMonth(), 1)),
+  });
+  return expense;
 };
 
 /**
@@ -23,9 +27,12 @@ export async function withBudgetAlert<T>(categoryId: string, action: () => T | P
   const limit = store.getBudgets()[categoryId];
   if (!limit) return action();
 
-  const before = spentThisMonth(categoryId);
+  // Không đo được số đã chi (mất mạng) thì vẫn lưu giao dịch, chỉ bỏ qua cảnh báo
+  const before = await spentThisMonth(categoryId).catch(() => null);
   const result = await action();
-  const after = spentThisMonth(categoryId);
+  if (before === null) return result;
+  const after = await spentThisMonth(categoryId).catch(() => null);
+  if (after === null) return result;
 
   const crossed = THRESHOLDS.find((p) => before < (limit * p) / 100 && after >= (limit * p) / 100);
   if (crossed) {

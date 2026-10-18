@@ -3,17 +3,17 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { softColor } from '@/features/transactions/categories';
 import type { Transaction } from '@/features/transactions/types';
-import { formatDayMonth, formatRelativeDay, formatSignedVnd, formatTime } from '@/lib/format';
+import { formatDayMonth, formatRelativeDay, formatSignedVnd } from '@/lib/format';
 import { colors, radius, spacing } from '@/theme';
 
 type Props = {
   item: Transaction;
   onPress?: (item: Transaction) => void;
   /**
-   * Thời điểm ở dòng phụ: relative ("Hôm nay"), time ("08:35" — khi đã nhóm theo ngày),
-   * date ("03/10" — kết quả tìm kiếm)
+   * Ngày ở dòng phụ: relative ("Hôm nay"), date ("03/10"), none (danh sách đã nhóm theo ngày).
+   * Server chỉ lưu ngày, không có giờ.
    */
-  when?: 'relative' | 'time' | 'date';
+  when?: 'relative' | 'date' | 'none';
   divider?: boolean;
 };
 
@@ -21,11 +21,7 @@ export function TransactionItem({ item, onPress, when = 'relative', divider }: P
   const { category } = item;
   const income = item.amount > 0;
   const whenText =
-    when === 'time'
-      ? formatTime(item.date)
-      : when === 'date'
-        ? formatDayMonth(item.date)
-        : formatRelativeDay(item.date);
+    when === 'none' ? null : when === 'date' ? formatDayMonth(item.date) : formatRelativeDay(item.date);
 
   return (
     <Pressable
@@ -43,7 +39,7 @@ export function TransactionItem({ item, onPress, when = 'relative', divider }: P
           {item.title}
         </Text>
         <Text style={styles.meta}>
-          {category.name} · {item.walletName} · {whenText}
+          {[category.name, item.walletName, whenText].filter(Boolean).join(' · ')}
         </Text>
       </View>
 

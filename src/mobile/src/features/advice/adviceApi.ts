@@ -1,4 +1,5 @@
 import * as store from '@/features/transactions/localStore';
+import { listSummaryTransactions } from './budgetsApi';
 import { MIN_EXPENSES_FOR_ADVICE, buildSummary, type SpendingSummary } from './summary';
 
 export type Advice = {
@@ -40,7 +41,7 @@ const fakeDelay = (ms = 1500) => new Promise((resolve) => setTimeout(resolve, ms
  * Chỉ gửi `SpendingSummary` (số liệu tổng hợp), không gửi giao dịch chi tiết.
  */
 export async function getAdvice(): Promise<AdviceResult> {
-  const summary = buildSummary(store.getAll(), store.getBudgets());
+  const summary = buildSummary(await listSummaryTransactions(), store.getBudgets());
   // Tên danh mục cho ngân sách lấy từ danh mục hiện tại
   summary.budgets = summary.budgets.map((b) => ({ ...b, name: store.getCategory(b.categoryId)?.name ?? b.name }));
 

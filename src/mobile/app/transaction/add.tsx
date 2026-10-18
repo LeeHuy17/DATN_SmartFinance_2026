@@ -30,7 +30,15 @@ import {
   listWallets,
   updateTransaction,
 } from '@/features/transactions/transactionsApi';
-import type { Category, CategoryKind, Transaction, Wallet } from '@/features/transactions/types';
+import type {
+  Category,
+  CategoryKind,
+  Transaction,
+  TransactionInput,
+  Wallet,
+} from '@/features/transactions/types';
+import { getFieldErrors } from '@/lib/api/client';
+import { toYmd } from '@/lib/date';
 import { formatFullDate, maskDayInput } from '@/lib/format';
 import { colors, radius, spacing } from '@/theme';
 
@@ -117,6 +125,8 @@ export default function AddTransactionScreen() {
     const e: Errors = {};
     if (amount <= 0) e.amount = 'Nhập số tiền lớn hơn 0.';
     if (!category) e.category = 'Chọn một danh mục.';
+    // Người dùng mới chưa có ví nào thì không có ví để ghi giao dịch vào
+    if (!walletId) e.form = 'Chưa có ví nào. Hãy thêm ví ở tab Ví trước.';
     const date = parseDayInput(day);
     if (!date) e.date = 'Nhập ngày theo dạng dd/mm/yyyy.';
     else if (date.getTime() > Date.now()) e.date = 'Ngày giao dịch không được ở tương lai.';
@@ -128,26 +138,15 @@ export default function AddTransactionScreen() {
     setErrors(e);
     if (Object.keys(e).length || !date || !category || !walletId) return;
 
-    // Giữ giờ phút: lúc sửa lấy giờ cũ, lúc thêm lấy giờ hiện tại
-    const time = original ? new Date(original.date) : new Date();
-    date.setHours(time.getHours(), time.getMinutes(), 0, 0);
-    if (date.getTime() > Date.now()) date.setTime(Date.now());
-
-    const trimmedNote = note.trim();
-    // Nhập tay không có tên cửa hàng: dùng ghi chú, không có thì dùng tên danh mục.
-    // Khi sửa, giữ tên riêng (vd: tên cửa hàng từ hóa đơn); tên tự sinh thì tạo lại theo dữ liệu mới.
-    const titleWasDerived =
-      original &&
-      (original.title === original.note || original.title === original.category.name);
-    const input = {
-      // Hóa đơn quét được: dùng tên cửa hàng làm tên giao dịch
-      title: original && !titleWasDerived ? original.title : ocr?.merchant || trimmedNote || category.name,
+    // Loại thu / chi do server suy ra từ danh mục; số tiền luôn dương, ngày theo giờ máy.
+    // Hóa đơn quét được mà không ghi chú thì lưu tên cửa hàng làm ghi chú để còn nhận ra giao dịch.
+    const input: TransactionInput = {
       categoryId: category.id,
       walletId,
-      amount: kind === 'expense' ? -amount : amount,
-      date: date.toISOString(),
-      note: trimmedNote || undefined,
-      source: original?.source ?? (ocr ? ('ocr' as const) : ('manual' as const)),
+      amount,
+      date: toYmd(date),
+      note: note.trim() || ocr?.merchant?.trim() || '',
+      source: original?.source ?? (ocr ? 'ocr' : 'manual'),
     };
 
     setSaving(true);
@@ -158,8 +157,15 @@ export default function AddTransactionScreen() {
       // Đi từ luồng quét: đóng cả màn quét, về thẳng Tổng quan để thấy giao dịch vừa lưu
       if (ocr) router.dismissTo('/');
       else goBack();
-    } catch {
-      setErrors({ form: 'Không lưu được giao dịch. Vui lòng thử lại.' });
+    } catch (err) {
+      // Lỗi 400 theo trường (vd. ví vừa bị lưu trữ, danh mục vừa bị ẩn ở máy khác)
+      const f = getFieldErrors(err);
+      setErrors({
+        amount: f.amount,
+        category: f.category,
+        date: f.date,
+        form: f.wallet ?? f.note ?? f.form ?? (Object.keys(f).length ? undefined : 'Không lưu được giao dịch. Vui lòng thử lại.'),
+      });
     } finally {
       setSaving(false);
     }

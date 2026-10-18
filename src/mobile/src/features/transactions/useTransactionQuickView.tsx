@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
 
+import { showToast } from '@/components/Toast';
 import { confirm } from '@/lib/confirm';
 import { TransactionQuickView } from './components/TransactionQuickView';
 import { deleteTransaction } from './transactionsApi';
@@ -22,7 +23,6 @@ export function useTransactionQuickView(onChanged: () => void) {
       onClose={close}
       onEdit={(t) => {
         close();
-        // TODO: màn hình Thêm giao dịch đọc id để chuyển sang chế độ sửa
         router.push({ pathname: '/transaction/add', params: { id: t.id } });
       }}
       onDelete={async (t) => {
@@ -33,8 +33,15 @@ export function useTransactionQuickView(onChanged: () => void) {
           destructive: true,
         });
         if (!ok) return;
-        await deleteTransaction(t.id);
+        try {
+          await deleteTransaction(t.id);
+        } catch {
+          showToast('Không xóa được giao dịch. Vui lòng thử lại.', 'alert-circle');
+          return;
+        }
         close();
+        showToast('Đã xóa giao dịch');
+        // Danh sách, số dư ví và tổng thu chi đều lấy lại từ server
         onChanged();
       }}
     />
