@@ -1,3 +1,57 @@
-from django.db import models
+from decimal import Decimal
 
-# Create your models here.
+from django.conf import settings
+from django.core.validators import MinValueValidator
+from django.db import models
+from django.utils import timezone
+
+
+class Transaction(models.Model):
+    class Kind(models.TextChoices):
+        INCOME = "income", "Thu"
+        EXPENSE = "expense", "Chi"
+
+    class Source(models.TextChoices):
+        MANUAL = "manual", "Nhập tay"
+        OCR = "ocr", "Quét hóa đơn"
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="transactions"
+    )
+    # RESTRICT thay vì PROTECT: vẫn chặn xóa riêng ví/danh mục đang có giao dịch (view trả 409),
+    # nhưng cho xóa user vì giao dịch của user cũng bị xóa theo trong cùng lần xóa
+    wallet = models.ForeignKey(
+        "wallets.Wallet", on_delete=models.RESTRICT, related_name="transactions"
+    )
+    category = models.ForeignKey(
+        "categories.Category", on_delete=models.RESTRICT, related_name="transactions"
+    )
+    # Luôn lấy theo category, xem save()
+    kind = models.CharField(max_length=7, choices=Kind.choices, editable=False)
+    amount = models.DecimalField(
+        max_digits=18, decimal_places=2, validators=[MinValueValidator(Decimal("0.01"))]
+    )
+    note = models.CharField(max_length=255, blank=True)
+    # Nhập tay hay tạo từ hóa đơn quét được (app hiện nhãn khác nhau)
+    source = models.CharField(max_length=6, choices=Source.choices, default=Source.MANUAL)
+    date = models.DateField(default=timezone.localdate)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("-date", "-id")
+        indexes = [
+            models.Index(fields=("user", "-date"), name="tx_user_date_idx"),
+            models.Index(fields=("user", "wallet", "-date"), name="tx_user_wallet_date_idx"),
+            models.Index(fields=("user", "category", "-date"), name="tx_user_cat_date_idx"),
+        ]
+
+    def save(self, *args, **kwargs):
+        self.kind = self.category.kind
+        update_fields = kwargs.get("update_fields")
+        if update_fields is not None and "category" in update_fields:
+            kwargs["update_fields"] = {*update_fields, "kind"}
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.date} {self.kind} {self.amount}"

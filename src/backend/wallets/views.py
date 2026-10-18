@@ -1,6 +1,7 @@
 from decimal import Decimal
 
-from rest_framework import viewsets
+from django.db.models import RestrictedError
+from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
@@ -13,7 +14,7 @@ class WalletViewSet(viewsets.ModelViewSet):
     pagination_class = None
 
     def get_queryset(self):
-        qs = Wallet.objects.filter(user=self.request.user).select_related("user")
+        qs = Wallet.objects.filter(user=self.request.user).select_related("user").with_balance()
         show_archived = self.request.query_params.get("include_archived") == "1"
         if self.action == "list" and not show_archived:
             qs = qs.filter(is_archived=False)
@@ -21,6 +22,15 @@ class WalletViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
+
+    def destroy(self, request, *args, **kwargs):
+        try:
+            return super().destroy(request, *args, **kwargs)
+        except RestrictedError:
+            return Response(
+                {"detail": "Ví đang có giao dịch, hãy lưu trữ thay vì xóa."},
+                status=status.HTTP_409_CONFLICT,
+            )
 
     @action(detail=False, methods=["get"])
     def summary(self, request):
