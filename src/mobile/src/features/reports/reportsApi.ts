@@ -1,9 +1,12 @@
-import * as store from '@/features/transactions/localStore';
-import { buildReport, type Period, type Report } from './aggregate';
+import { listAllTransactions } from '@/features/transactions/transactionsApi';
+import { toYmd } from '@/lib/date';
+import { buildReport, periodRange, type Period, type Report } from './aggregate';
 
-// TODO: thay bằng apiFetch khi backend có endpoint báo cáo (nên tính tổng ở server).
-// Giữ nguyên chữ ký hàm để màn hình không phải sửa.
+// Lấy giao dịch trong kỳ từ server rồi tổng hợp ở app.
+// TODO: nhánh feature/reports nên tính tổng ở server.
 
 export async function getReport(period: Period): Promise<Report> {
-  return buildReport(store.getAll(), period);
+  const { from, to } = periodRange(period);
+  const list = await listAllTransactions({ date_from: toYmd(from), date_to: toYmd(to) });
+  return buildReport(list, period);
 }

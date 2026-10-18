@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { softColor } from '@/features/transactions/categories';
 import type { Transaction } from '@/features/transactions/types';
-import { formatDateTime, formatSignedVnd } from '@/lib/format';
+import { formatFullDate, formatSignedVnd } from '@/lib/format';
 import { colors, radius, spacing } from '@/theme';
 
 type Props = {
@@ -57,7 +57,7 @@ export function TransactionQuickView({ transaction, onClose, onEdit, onDelete }:
 
             <View style={styles.rows}>
               <Row label="Ví" value={t.walletName} />
-              <Row label="Thời gian" value={formatDateTime(t.date)} />
+              <Row label="Ngày" value={formatFullDate(t.date)} />
               <Row label="Ghi chú" value={t.note || '—'} />
               <View style={[styles.row, styles.rowLast]}>
                 <Text style={styles.rowLabel}>Nguồn</Text>

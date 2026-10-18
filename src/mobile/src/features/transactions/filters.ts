@@ -1,3 +1,5 @@
+import { addDays, toYmd } from '@/lib/date';
+import type { TransactionFilters as ApiTransactionFilters } from './transactionQuery';
 import type { Transaction } from './types';
 
 export type TypeFilter = 'all' | 'expense' | 'income';
@@ -52,20 +54,18 @@ export function parseDayInput(value: string): Date | null {
   return d.getDate() === Number(m[1]) ? d : null;
 }
 
+/** Khoảng ngày [từ, đến] (giờ máy) của bộ lọc thời gian; null = không giới hạn */
 function timeRange(f: TransactionFilters, now = new Date()): [Date | null, Date | null] {
-  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   switch (f.time) {
     case 'today':
-      return [startOfToday, null];
+      return [today, null];
     case '7d':
-      return [new Date(startOfToday.getTime() - 6 * 86_400_000), null];
+      return [addDays(today, -6), null];
     case 'month':
       return [new Date(now.getFullYear(), now.getMonth(), 1), null];
-    case 'custom': {
-      const to = parseDayInput(f.to);
-      // Hết ngày "đến"
-      return [parseDayInput(f.from), to && new Date(to.getTime() + 86_400_000 - 1)];
-    }
+    case 'custom':
+      return [parseDayInput(f.from), parseDayInput(f.to)];
     default:
       return [null, null];
   }
@@ -81,31 +81,17 @@ export const normalizeText = (s: string) =>
     .toLowerCase()
     .trim();
 
-/** Tìm theo tên, ghi chú, danh mục hoặc số tiền */
-function matchesQuery(t: Transaction, query: string) {
-  const q = normalizeText(query);
-  if (!q) return true;
-  const haystack = normalizeText(
-    [t.title, t.note ?? '', t.category.name, t.walletName].join(' '),
-  );
-  if (haystack.includes(q)) return true;
-  // "65000", "65.000" hay "65k" đều khớp -65.000đ
-  const digits = query.replace(/k$/i, '000').replace(/\D/g, '');
-  return digits.length >= 2 && String(Math.abs(t.amount)).includes(digits);
-}
-
-export function applyFilters(list: Transaction[], f: TransactionFilters, query: string) {
+/** Bộ lọc trên màn hình + từ khóa → tham số của /transactions/ (server lọc, app chỉ hiển thị) */
+export function toApiFilters(f: TransactionFilters, query: string): ApiTransactionFilters {
   const [from, to] = timeRange(f);
-  return list.filter((t) => {
-    if (f.type === 'expense' && t.amount >= 0) return false;
-    if (f.type === 'income' && t.amount < 0) return false;
-    const d = new Date(t.date);
-    if (from && d < from) return false;
-    if (to && d > to) return false;
-    if (f.categories.length && !f.categories.includes(t.category.id)) return false;
-    if (f.walletIds.length && !f.walletIds.includes(t.walletId)) return false;
-    return matchesQuery(t, query);
-  });
+  return {
+    kind: f.type === 'all' ? undefined : f.type,
+    date_from: from ? toYmd(from) : undefined,
+    date_to: to ? toYmd(to) : undefined,
+    category: f.categories.join(',') || undefined,
+    wallet: f.walletIds.join(',') || undefined,
+    search: query.trim() || undefined,
+  };
 }
 
 export const sumAmount = (list: Transaction[]) => list.reduce((s, t) => s + t.amount, 0);

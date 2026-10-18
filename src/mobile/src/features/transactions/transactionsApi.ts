@@ -1,60 +1,148 @@
 import * as categoriesApi from '@/features/categories/categoriesApi';
 import { withBudgetAlert } from '@/features/notifications/budgetAlerts';
 import * as walletsApi from '@/features/wallets/walletsApi';
-import { ApiError } from '@/lib/api/client';
-import * as store from './localStore';
-import type { Category, CategoryKind, Transaction, TransactionInput, Wallet } from './types';
+import { ApiError, apiFetch } from '@/lib/api/client';
+import { fromYmd } from '@/lib/date';
+import { parseMoney, toMoneyString } from '@/lib/money';
+import { resolveIcon } from './categories';
+import { qs, type TransactionFilters } from './transactionQuery';
+import type { CategoryKind, Transaction, TransactionInput, TransactionSource, Wallet } from './types';
 
-// Giao dịch: TODO thay bằng apiFetch khi backend có endpoint giao dịch (nhánh feature/transactions).
-// Ví và danh mục đã lấy từ server (walletsApi, categoriesApi).
+export {
+  getTransactionSummary,
+  type TransactionFilters,
+  type TransactionSummary,
+} from './transactionQuery';
+
+// ---------- Dữ liệu thô của server ----------
+
+export type ApiTransaction = {
+  id: number;
+  wallet: number;
+  wallet_name: string;
+  category: number;
+  category_name: string;
+  category_icon: string;
+  category_color: string;
+  kind: CategoryKind;
+  /** Decimal dạng chuỗi, luôn dương */
+  amount: string;
+  note: string;
+  source: TransactionSource;
+  /** YYYY-MM-DD */
+  date: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type Page<T> = { count: number; next: string | null; previous: string | null; results: T[] };
+
+// ---------- Quy đổi sang kiểu hiển thị ----------
+
+const toTransaction = (t: ApiTransaction): Transaction => {
+  const amount = parseMoney(t.amount);
+  return {
+    id: String(t.id),
+    title: t.note || t.category_name,
+    note: t.note || undefined,
+    category: {
+      id: String(t.category),
+      name: t.category_name,
+      color: t.category_color,
+      icon: resolveIcon(t.category_icon),
+    },
+    walletId: String(t.wallet),
+    walletName: t.wallet_name,
+    amount: t.kind === 'expense' ? -amount : amount,
+    date: fromYmd(t.date).toISOString(),
+    source: t.source,
+  };
+};
+
+const toBody = (input: Partial<TransactionInput>) =>
+  JSON.stringify({
+    wallet: input.walletId === undefined ? undefined : Number(input.walletId),
+    category: input.categoryId === undefined ? undefined : Number(input.categoryId),
+    amount: input.amount === undefined ? undefined : toMoneyString(input.amount),
+    note: input.note,
+    date: input.date,
+    source: input.source,
+  });
 
 // ---------- Giao dịch ----------
 
-/** Toàn bộ giao dịch, mới nhất trước (lọc và tìm kiếm làm ở phía app) */
-export async function listTransactions(): Promise<Transaction[]> {
-  return store.getAll();
+export type TransactionPage = {
+  items: Transaction[];
+  /** Tổng số giao dịch khớp bộ lọc (mọi trang) */
+  count: number;
+  hasMore: boolean;
+};
+
+/**
+ * Một trang giao dịch, mới nhất trước. Cuộn vô hạn thì tăng `page`; dừng khi hasMore = false.
+ * Gọi theo số trang, không gọi thẳng URL `next` vì host trong đó phụ thuộc địa chỉ server nhìn thấy.
+ */
+export async function listTransactions(filters: TransactionFilters = {}): Promise<TransactionPage> {
+  const data = await apiFetch<Page<ApiTransaction>>(`/transactions/?${qs(filters)}`);
+  return { items: data.results.map(toTransaction), count: data.count, hasMore: data.next !== null };
 }
 
+/** Mọi giao dịch khớp bộ lọc (gom nhiều trang), dùng cho báo cáo / ngân sách tính ở app */
+export async function listAllTransactions(filters: TransactionFilters = {}): Promise<Transaction[]> {
+  const MAX_PAGES = 50;
+  const all: Transaction[] = [];
+  for (let page = 1; page <= MAX_PAGES; page++) {
+    const { items, hasMore } = await listTransactions({ ...filters, page, page_size: 100 });
+    all.push(...items);
+    if (!hasMore) break;
+  }
+  return all;
+}
+
+/** null nếu không có (đã xóa, hoặc không phải giao dịch của mình) */
 export async function getTransaction(id: string): Promise<Transaction | null> {
-  return store.getById(id) ?? null;
+  try {
+    return toTransaction(await apiFetch<ApiTransaction>(`/transactions/${id}/`));
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 404) return null;
+    throw e;
+  }
 }
 
+/** Lỗi 400 (ví đã lưu trữ, danh mục đang ẩn...) đọc bằng getFieldErrors(e) */
 export async function createTransaction(input: TransactionInput): Promise<Transaction> {
-  return withBudgetAlert(input.categoryId, () => store.add(input));
+  return withBudgetAlert(input.categoryId, async () =>
+    toTransaction(
+      await apiFetch<ApiTransaction>('/transactions/', { method: 'POST', body: toBody(input) }),
+    ),
+  );
 }
 
-export async function updateTransaction(id: string, input: TransactionInput): Promise<Transaction> {
-  const t = await withBudgetAlert(input.categoryId, () => store.update(id, input));
-  if (!t) throw new Error('NOT_FOUND');
-  return t;
+export async function updateTransaction(id: string, input: Partial<TransactionInput>): Promise<Transaction> {
+  const save = async () =>
+    toTransaction(
+      await apiFetch<ApiTransaction>(`/transactions/${id}/`, { method: 'PATCH', body: toBody(input) }),
+    );
+  return input.categoryId ? withBudgetAlert(input.categoryId, save) : save();
 }
 
 export async function deleteTransaction(id: string): Promise<void> {
-  store.remove(id);
+  await apiFetch(`/transactions/${id}/`, { method: 'DELETE' });
 }
 
-// ---------- Ví ----------
+// ---------- Ví và danh mục (cho ô chọn khi nhập giao dịch) ----------
 
-/** Các ví đang dùng (không gồm ví đã lưu trữ), dùng cho ô chọn ví khi nhập giao dịch */
+/** Các ví đang dùng (không gồm ví đã lưu trữ) */
 export const listWallets = (): Promise<Wallet[]> => walletsApi.list();
 
-// ---------- Danh mục ----------
+export type CategoryWithCount = categoriesApi.CategoryWithCount;
 
-export type CategoryWithCount = Category & { transactionCount: number };
-
-const withCount = (c: Category): CategoryWithCount => ({
-  ...c,
-  transactionCount: store.countByCategory(c.id),
-});
-
-export async function listCategories(kind?: CategoryKind): Promise<CategoryWithCount[]> {
-  return (await categoriesApi.list(kind)).map(withCount);
-}
+export const listCategories = (kind?: CategoryKind) => categoriesApi.list(kind);
 
 /** null nếu không có (đã xóa, hoặc không phải danh mục của mình) */
 export async function getCategory(id: string): Promise<CategoryWithCount | null> {
   try {
-    return withCount(await categoriesApi.get(id));
+    return await categoriesApi.get(id);
   } catch (e) {
     if (e instanceof ApiError && e.status === 404) return null;
     throw e;

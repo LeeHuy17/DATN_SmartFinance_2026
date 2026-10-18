@@ -35,21 +35,30 @@ export type CategoryRef = Pick<Category, 'id' | 'name' | 'color' | 'icon'>;
 /** Giao dịch được tạo bằng cách quét hóa đơn (OCR) hay nhập tay */
 export type TransactionSource = 'ocr' | 'manual';
 
+/** Giao dịch để hiển thị, quy đổi từ dữ liệu server (xem transactionsApi.ts) */
 export type Transaction = {
   id: string;
+  /** Tên hiển thị: ghi chú, không có thì tên danh mục */
   title: string;
   category: CategoryRef;
   walletId: string;
   walletName: string;
-  /** Âm là chi, dương là thu */
+  /** Số nguyên đồng; âm là chi, dương là thu */
   amount: number;
-  /** ISO 8601 */
+  /** ISO 8601, lúc 0h của ngày giao dịch theo giờ máy (server chỉ lưu ngày, không có giờ) */
   date: string;
   note?: string;
   source: TransactionSource;
 };
 
-/** Dữ liệu gửi lên khi tạo / sửa giao dịch */
-export type TransactionInput = Omit<Transaction, 'id' | 'walletName' | 'category'> & {
+/** Dữ liệu gửi lên khi tạo / sửa giao dịch. Loại thu / chi do server tự suy ra từ danh mục */
+export type TransactionInput = {
   categoryId: string;
+  walletId: string;
+  /** Số nguyên đồng, luôn dương */
+  amount: number;
+  /** YYYY-MM-DD theo giờ máy (lib/date.ts → toYmd) */
+  date: string;
+  note: string;
+  source: TransactionSource;
 };

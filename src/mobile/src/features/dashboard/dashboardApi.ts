@@ -1,26 +1,22 @@
 import { unreadCount } from '@/features/notifications/notificationsStore';
 import { getProfile, shortName } from '@/features/profile/profileStore';
-import * as store from '@/features/transactions/localStore';
+import { getTransactionSummary, listTransactions } from '@/features/transactions/transactionsApi';
 import * as walletsApi from '@/features/wallets/walletsApi';
+import { toYmd } from '@/lib/date';
 import type { DashboardData } from './types';
 
 /** Số giao dịch gần nhất hiển thị ở Tổng quan */
 export const RECENT_LIMIT = 5;
 
 export async function getDashboard(): Promise<DashboardData> {
-  const [profile, wallets, summary] = await Promise.all([
+  const now = new Date();
+  const [profile, wallets, summary, recent, month] = await Promise.all([
     getProfile(),
     walletsApi.list(),
     walletsApi.getSummary(),
+    listTransactions({ page_size: RECENT_LIMIT }),
+    getTransactionSummary({ date_from: toYmd(new Date(now.getFullYear(), now.getMonth(), 1)) }),
   ]);
-
-  // Thu / chi tháng này: tính từ giao dịch đã nhập (TODO: lấy từ server khi có API giao dịch)
-  const all = store.getAll();
-  const now = new Date();
-  const thisMonth = all.filter((t) => {
-    const d = new Date(t.date);
-    return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
-  });
 
   return {
     displayName: shortName(profile.fullName, profile.email),
@@ -29,9 +25,9 @@ export async function getDashboard(): Promise<DashboardData> {
     totalBalance: summary.totalBalance,
     walletCount: summary.walletCount,
     month: now.getMonth() + 1,
-    monthIncome: thisMonth.filter((t) => t.amount > 0).reduce((s, t) => s + t.amount, 0),
-    monthExpense: thisMonth.filter((t) => t.amount < 0).reduce((s, t) => s - t.amount, 0),
+    monthIncome: month.income,
+    monthExpense: month.expense,
     wallets,
-    recentTransactions: all.slice(0, RECENT_LIMIT),
+    recentTransactions: recent.items,
   };
 }

@@ -18,6 +18,7 @@ INSTALLED_APPS = [
     "rest_framework",          # nếu dùng Django REST Framework cho API mobile
     "rest_framework_simplejwt.token_blacklist",  # để hỗ trợ logout
     "corsheaders",
+    "django_filters",
     "accounts",
     "transactions",
     "categories.apps.CategoriesConfig",

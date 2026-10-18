@@ -15,6 +15,12 @@ export class ApiError extends Error {
   }
 }
 
+/** Câu "detail" server trả kèm lỗi (vd. 409 khi xóa ví / danh mục đang có giao dịch) */
+export const apiDetail = (e: ApiError): string | undefined => {
+  const detail = (e.data as { detail?: unknown } | null)?.detail;
+  return typeof detail === 'string' ? detail : undefined;
+};
+
 /**
  * Lỗi 400 của DRF dạng { name: ["Bạn đã có ví với tên này."] } → { name: "Bạn đã có ví với tên này." }.
  * non_field_errors và detail gom vào khóa "form". Lỗi khác 400 trả về {}.
