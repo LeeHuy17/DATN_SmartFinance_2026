@@ -1,5 +1,7 @@
 import type { Ionicons } from '@expo/vector-icons';
 
+import type { BudgetAlert } from '@/features/budgets/budgetsApi';
+
 export type WalletType = 'cash' | 'bank' | 'ewallet' | 'credit' | 'savings';
 
 /** Số tiền là số nguyên đồng, đã quy đổi từ chuỗi Decimal của server (xem lib/money.ts) */
@@ -49,6 +51,8 @@ export type Transaction = {
   date: string;
   note?: string;
   source: TransactionSource;
+  /** Chỉ có ngay sau khi tạo / sửa giao dịch chi: ngân sách vừa chạm ngưỡng hoặc vượt mức */
+  budgetAlerts?: BudgetAlert[];
 };
 
 /** Dữ liệu gửi lên khi tạo / sửa giao dịch. Loại thu / chi do server tự suy ra từ danh mục */

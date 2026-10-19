@@ -14,6 +14,10 @@ export type AppNotification = {
   read: boolean;
   /** Màn mở ra khi chạm vào thông báo */
   link?: Href;
+  /** danger: tô đỏ (vd. đã vượt ngân sách); mặc định theo màu của loại thông báo */
+  tone?: 'danger';
+  /** Thông báo cùng key thay thế bản cũ (vd. mỗi ngân sách chỉ giữ cảnh báo mới nhất) */
+  key?: string;
 };
 
 // Chỉ chứa thông báo phát sinh trong phiên dùng app (vượt ngân sách, đổi mật khẩu...)
@@ -88,7 +92,7 @@ export const pushNotification = (
 ) => {
   if (input.type !== 'security' && !settings[input.type]) return null;
   const n: AppNotification = { ...input, id: `n${Date.now()}`, createdAt: new Date().toISOString(), read: false };
-  notifications = [...notifications, n];
+  notifications = [...notifications.filter((x) => !input.key || x.key !== input.key), n];
   if (settings.banner && !silent) listeners.forEach((fn) => fn(n));
   return n;
 };

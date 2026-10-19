@@ -4,7 +4,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
-import { NOTIFICATION_LOOK } from '@/features/notifications/notificationLook';
+import { lookOf } from '@/features/notifications/notificationLook';
 import { markRead, onNewNotification, type AppNotification } from '@/features/notifications/notificationsStore';
 import { colors, radius, spacing } from '@/theme';
 
@@ -42,7 +42,7 @@ export function InAppBanner() {
   );
 
   if (!current) return null;
-  const look = NOTIFICATION_LOOK[current.type];
+  const look = lookOf(current);
 
   return (
     <Animated.View

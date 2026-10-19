@@ -1,6 +1,5 @@
 import { apiFetch } from '@/lib/api/client';
 import { resolveIcon } from '@/features/transactions/categories';
-import * as store from '@/features/transactions/localStore';
 import type { Category, CategoryKind } from '@/features/transactions/types';
 
 type ApiCategory = {
@@ -38,28 +37,20 @@ const toBody = (input: Partial<CategoryInput>) =>
     is_hidden: input.hidden,
   });
 
-/** Lưu bản sao để gắn tên / màu danh mục vào giao dịch */
-const remember = (c: CategoryWithCount) => {
-  store.cacheCategories([c]);
-  return c;
-};
-
 /** Danh mục của người dùng; truyền kind để lấy riêng Chi hoặc Thu (?kind=) */
 export async function list(kind?: CategoryKind): Promise<CategoryWithCount[]> {
   const data = await apiFetch<ApiCategory[]>(`/categories/${kind ? `?kind=${kind}` : ''}`);
-  const categories = data.map(toCategory);
-  store.cacheCategories(categories);
-  return categories;
+  return data.map(toCategory);
 }
 
 export async function get(id: string): Promise<CategoryWithCount> {
-  return remember(toCategory(await apiFetch<ApiCategory>(`/categories/${id}/`)));
+  return toCategory(await apiFetch<ApiCategory>(`/categories/${id}/`));
 }
 
 /** Lỗi 400 (vd. trùng tên trong cùng loại) đọc bằng getFieldErrors(e).name */
 export async function create(input: CategoryInput): Promise<CategoryWithCount> {
   const data = await apiFetch<ApiCategory>('/categories/', { method: 'POST', body: toBody(input) });
-  return remember(toCategory(data));
+  return toCategory(data);
 }
 
 export async function update(id: string, input: Partial<CategoryInput>): Promise<CategoryWithCount> {
@@ -67,10 +58,9 @@ export async function update(id: string, input: Partial<CategoryInput>): Promise
     method: 'PATCH',
     body: toBody(input),
   });
-  return remember(toCategory(data));
+  return toCategory(data);
 }
 
 export async function remove(id: string): Promise<void> {
   await apiFetch(`/categories/${id}/`, { method: 'DELETE' });
-  store.forgetCategory(id);
 }

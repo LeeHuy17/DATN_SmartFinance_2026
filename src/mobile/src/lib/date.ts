@@ -12,6 +12,12 @@ export function fromYmd(ymd: string): Date {
   return new Date(y, m - 1, d);
 }
 
+/** Date (giờ máy) → "2026-10", dùng cho ?month= của ngân sách */
+export const toMonthKey = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`;
+
+/** Ngày 1 của tháng cách `months` tháng (âm là lùi về trước) */
+export const addMonths = (d: Date, months: number) => new Date(d.getFullYear(), d.getMonth() + months, 1);
+
 /** Cộng / trừ số ngày theo lịch (không lệch khi qua đổi giờ mùa hè) */
 export const addDays = (d: Date, days: number) =>
   new Date(d.getFullYear(), d.getMonth(), d.getDate() + days);

@@ -1,72 +1,137 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import type { BudgetUsage } from '@/features/advice/summary';
+import type { Budget, BudgetStatus } from '@/features/budgets/budgetsApi';
+import { CategoryIcon } from '@/features/transactions/components/CategoryIcon';
 import { formatVnd } from '@/lib/format';
 import { colors, radius, spacing } from '@/theme';
 
-/** Từ mức này trở lên thì cảnh báo "Sắp hết" */
-const WARN_AT = 80;
-
 type Props = {
-  month: number;
-  budgets: BudgetUsage[];
-  /** Có thì hiện link "Thiết lập" */
-  onSetup?: () => void;
+  /** Tháng đang xem (ngày 1 của tháng, giờ máy) */
+  month: Date;
+  /** null = đang tải */
+  budgets: Budget[] | null;
+  error?: boolean;
+  onRetry?: () => void;
+  /** Có thì hiện nút chuyển tháng; không cho xem tháng sau tháng hiện tại */
+  onChangeMonth?: (delta: -1 | 1) => void;
+  /** Có thì hiện nút "Thêm" và cho chạm vào ngân sách để sửa, chỉ ở tháng hiện tại (tháng cũ là lịch sử) */
+  onAdd?: () => void;
+  onEdit?: (b: Budget) => void;
 };
 
-function level(percent: number) {
-  if (percent >= 100) return { color: colors.danger, icon: 'alert-circle' as const, label: 'Đã vượt' };
-  if (percent >= WARN_AT) return { color: colors.expense, icon: 'warning-outline' as const, label: 'Sắp hết' };
-  return { color: colors.primary, icon: null, label: null };
-}
+/** Màu và nhãn theo trạng thái server trả (warning từ ngưỡng cảnh báo, exceeded khi vượt hạn mức) */
+const LEVEL: Record<BudgetStatus, { color: string; icon: keyof typeof Ionicons.glyphMap | null; label: string | null }> = {
+  ok: { color: colors.primary, icon: null, label: null },
+  warning: { color: colors.expense, icon: 'warning-outline', label: 'Sắp hết' },
+  exceeded: { color: colors.danger, icon: 'alert-circle', label: 'Đã vượt' },
+};
 
-export function BudgetCard({ month, budgets, onSetup }: Props) {
+/** remaining âm nghĩa là đã vượt: hiện "Vượt 32.000đ" thay vì số âm */
+const remainingText = (b: Budget) =>
+  b.remaining < 0 ? `Vượt ${formatVnd(b.remaining)}` : `Còn ${formatVnd(b.remaining)}`;
+
+export function BudgetCard({ month, budgets, error, onRetry, onChangeMonth, onAdd, onEdit }: Props) {
+  const now = new Date();
+  const isCurrentMonth = month.getFullYear() === now.getFullYear() && month.getMonth() === now.getMonth();
+  const title = isCurrentMonth
+    ? `Ngân sách tháng ${month.getMonth() + 1}`
+    : `Ngân sách ${month.getMonth() + 1}/${month.getFullYear()}`;
+
+  const renderBody = () => {
+    if (error) {
+      return (
+        <Pressable onPress={onRetry} hitSlop={8} accessibilityRole="button">
+          <Text style={styles.empty}>
+            Không tải được ngân sách. <Text style={styles.link}>Thử lại</Text>
+          </Text>
+        </Pressable>
+      );
+    }
+    if (!budgets) return <ActivityIndicator style={styles.loading} color={colors.primary} />;
+    if (budgets.length === 0) {
+      return (
+        <Text style={styles.empty}>
+          {isCurrentMonth
+            ? 'Chưa đặt ngân sách nào. Đặt hạn mức cho danh mục chi nhiều hoặc cho tổng chi tiêu để được cảnh báo sớm.'
+            : 'Tháng này không có ngân sách nào.'}
+        </Text>
+      );
+    }
+    return budgets.map((b) => {
+      const editHandler = b.editable ? onEdit : undefined;
+      const l = b.isActive ? LEVEL[b.status] : { color: colors.textMuted, icon: null, label: 'Đang tắt' };
+      const percent = Math.round(b.percent);
+      return (
+        <Pressable
+          key={b.id}
+          style={({ pressed }) => [styles.row, pressed && editHandler && styles.pressed]}
+          onPress={editHandler && (() => editHandler(b))}
+          disabled={!editHandler}
+          accessibilityRole={editHandler ? 'button' : undefined}
+          accessibilityLabel={`${b.name}: đã chi ${formatVnd(b.spent)} trên ${formatVnd(b.amount)}, ${percent}%${l.label ? `, ${l.label}` : ''}`}
+        >
+          <View style={styles.rowHeader}>
+            <CategoryIcon icon={b.icon} color={b.color} size={28} dimmed={!b.isActive} />
+            <Text style={[styles.name, !b.isActive && styles.muted]} numberOfLines={1}>
+              {b.name}
+            </Text>
+            {l.label && (
+              <View style={styles.status}>
+                {l.icon && <Ionicons name={l.icon} size={13} color={l.color} />}
+                <Text style={[styles.statusText, { color: l.color }]}>{l.label}</Text>
+              </View>
+            )}
+            {/* Số thật (vd. 132%), còn thanh tiến độ dừng ở 100% */}
+            <Text style={[styles.percent, b.status === 'exceeded' && b.isActive && { color: colors.danger }]}>
+              {percent}%
+            </Text>
+          </View>
+          <View style={styles.track}>
+            <View style={[styles.fill, { width: `${Math.min(b.percent, 100)}%`, backgroundColor: l.color }]} />
+          </View>
+          <View style={styles.amountsRow}>
+            <Text style={styles.amounts}>
+              {formatVnd(b.spent)} / {formatVnd(b.amount)}
+            </Text>
+            <Text style={[styles.amounts, b.remaining < 0 && b.isActive && styles.over]}>{remainingText(b)}</Text>
+          </View>
+        </Pressable>
+      );
+    });
+  };
+
   return (
     <View style={styles.card}>
       <View style={styles.header}>
-        <Text style={styles.title}>Ngân sách tháng {month}</Text>
-        {onSetup && (
-          <Pressable onPress={onSetup} hitSlop={8} accessibilityRole="button">
-            <Text style={styles.link}>Thiết lập</Text>
+        {onChangeMonth && (
+          <Pressable onPress={() => onChangeMonth(-1)} hitSlop={10} accessibilityLabel="Tháng trước">
+            <Ionicons name="chevron-back" size={18} color={colors.text} />
+          </Pressable>
+        )}
+        <Text style={styles.title}>{title}</Text>
+        {onChangeMonth && (
+          <Pressable
+            onPress={() => onChangeMonth(1)}
+            disabled={isCurrentMonth}
+            hitSlop={10}
+            style={isCurrentMonth && styles.hidden}
+            accessibilityLabel="Tháng sau"
+          >
+            <Ionicons name="chevron-forward" size={18} color={colors.text} />
+          </Pressable>
+        )}
+        <View style={styles.flex} />
+        {onAdd && isCurrentMonth && (
+          <Pressable onPress={onAdd} hitSlop={8} accessibilityRole="button">
+            <Text style={styles.link}>+ Thêm</Text>
           </Pressable>
         )}
       </View>
-
-      {budgets.length === 0 ? (
-        <Text style={styles.empty}>
-          Chưa đặt ngân sách nào. Đặt hạn mức cho danh mục chi nhiều để được cảnh báo sớm.
-        </Text>
-      ) : (
-        budgets.map((b) => {
-          const percent = Math.round((b.spent / b.limit) * 100);
-          const l = level(percent);
-          return (
-            <View
-              key={b.categoryId}
-              style={styles.row}
-              accessibilityLabel={`${b.name}: đã chi ${formatVnd(b.spent)} trên ${formatVnd(b.limit)}, ${percent}%${l.label ? `, ${l.label}` : ''}`}
-            >
-              <View style={styles.rowHeader}>
-                <Text style={styles.name}>{b.name}</Text>
-                {l.label && (
-                  <View style={styles.status}>
-                    <Ionicons name={l.icon!} size={13} color={l.color} />
-                    <Text style={[styles.statusText, { color: l.color }]}>{l.label}</Text>
-                  </View>
-                )}
-                <Text style={styles.percent}>{percent}%</Text>
-              </View>
-              <View style={styles.track}>
-                <View style={[styles.fill, { width: `${Math.min(percent, 100)}%`, backgroundColor: l.color }]} />
-              </View>
-              <Text style={styles.amounts}>
-                {formatVnd(b.spent)} / {formatVnd(b.limit)}
-              </Text>
-            </View>
-          );
-        })
+      {!isCurrentMonth && budgets && budgets.length > 0 && (
+        <Text style={styles.empty}>Hạn mức của tháng đã qua được giữ làm lịch sử, chỉ xem.</Text>
       )}
+      {renderBody()}
     </View>
   );
 }
@@ -80,13 +145,18 @@ const styles = StyleSheet.create({
     borderRadius: radius.xl,
     backgroundColor: colors.background,
   },
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  flex: { flex: 1 },
+  header: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   title: { fontSize: 16, fontWeight: '700', color: colors.text },
+  hidden: { opacity: 0 },
   link: { fontSize: 14, fontWeight: '700', color: colors.primary },
+  loading: { marginVertical: spacing.md },
   empty: { marginTop: spacing.sm, fontSize: 13, lineHeight: 19, color: colors.textMuted },
   row: { marginTop: spacing.md - 2 },
+  pressed: { opacity: 0.6 },
   rowHeader: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   name: { flex: 1, fontSize: 15, fontWeight: '600', color: colors.text },
+  muted: { color: colors.textMuted },
   status: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   statusText: { fontSize: 12, fontWeight: '700' },
   percent: { fontSize: 15, fontWeight: '700', color: colors.text },
@@ -98,5 +168,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   fill: { height: '100%', borderRadius: 4 },
-  amounts: { marginTop: 6, fontSize: 13, color: colors.textMuted },
+  amountsRow: { marginTop: 6, flexDirection: 'row', justifyContent: 'space-between' },
+  amounts: { fontSize: 13, color: colors.textMuted },
+  over: { fontWeight: '700', color: colors.danger },
 });

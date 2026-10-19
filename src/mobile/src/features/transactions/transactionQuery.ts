@@ -1,6 +1,6 @@
 // Phần dùng chung để truy vấn giao dịch: tham số lọc và tổng thu / chi.
-// Tách khỏi transactionsApi.ts để budgetAlerts.ts dùng được mà không tạo vòng import
-// (transactionsApi → budgetAlerts → transactionsApi).
+// Tách riêng để module khác (vd. thông báo, ngân sách) dùng được mà không phải import
+// transactionsApi.ts, tránh vòng import.
 import { apiFetch } from '@/lib/api/client';
 import { parseMoney } from '@/lib/money';
 import type { CategoryKind } from './types';

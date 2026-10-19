@@ -11,11 +11,11 @@ import {
   type Advice,
   type MockMode,
 } from '@/features/advice/adviceApi';
-import { listBudgetUsage } from '@/features/advice/budgetsApi';
 import { AdviceEmpty, AdviceError, AdviceLoading, OfflineBanner } from '@/features/advice/components/AdviceStates';
 import { BudgetCard } from '@/features/advice/components/BudgetCard';
 import { BudgetSheet } from '@/features/advice/components/BudgetSheet';
-import type { BudgetUsage } from '@/features/advice/summary';
+import { listBudgets, type Budget } from '@/features/budgets/budgetsApi';
+import { addMonths, toMonthKey } from '@/lib/date';
 import { colors, radius, spacing } from '@/theme';
 
 type Phase =
@@ -33,10 +33,12 @@ const MOCK_LABEL: Record<MockMode, string> = {
 export default function AdviceScreen() {
   const router = useRouter();
   const [phase, setPhase] = useState<Phase>({ kind: 'loading' });
-  const [budgets, setBudgets] = useState<BudgetUsage[]>([]);
-  const [budgetSheet, setBudgetSheet] = useState(false);
+  const [budgets, setBudgets] = useState<Budget[] | null>(null);
+  const [budgetError, setBudgetError] = useState(false);
+  const [budgetMonth, setBudgetMonth] = useState(() => addMonths(new Date(), 0));
+  // undefined: bảng đóng; null: thêm mới; Budget: sửa ngân sách đó
+  const [editingBudget, setEditingBudget] = useState<Budget | null | undefined>(undefined);
   const [mockMode, setMockMode] = useState<MockMode>(getMockMode());
-  const month = new Date().getMonth() + 1;
 
   const analyze = useCallback(async () => {
     setPhase({ kind: 'loading' });
@@ -49,17 +51,38 @@ export default function AdviceScreen() {
     }
   }, []);
 
+  // Số đã chi do server tính theo tháng đang xem (?month=YYYY-MM ghép từ giờ máy)
   const loadBudgets = useCallback(() => {
-    listBudgetUsage().then(setBudgets);
-  }, []);
+    setBudgetError(false);
+    listBudgets(toMonthKey(budgetMonth))
+      .then(setBudgets)
+      .catch(() => setBudgetError(true));
+  }, [budgetMonth]);
+
+  const changeBudgetMonth = (delta: -1 | 1) => {
+    setBudgets(null);
+    setBudgetMonth((m) => addMonths(m, delta));
+  };
 
   // Gọi AI khi mở tab lần đầu và khi bấm làm mới (không gọi lại mỗi lần chuyển tab)
   useEffect(() => {
     analyze();
   }, [analyze]);
 
-  // Ngân sách tính ở app nên tải lại mỗi khi quay về tab
+  // Tải lại mỗi khi quay về tab: có thể vừa thêm / sửa / xóa giao dịch hoặc xóa danh mục
   useFocusEffect(loadBudgets);
+
+  const budgetCard = (
+    <BudgetCard
+      month={budgetMonth}
+      budgets={budgets}
+      error={budgetError}
+      onRetry={loadBudgets}
+      onChangeMonth={changeBudgetMonth}
+      onAdd={() => setEditingBudget(null)}
+      onEdit={setEditingBudget}
+    />
+  );
 
   // Chỉ trong bản dev: giữ tay lên tiêu đề để chuyển trạng thái giả lập, phục vụ test giao diện
   const switchMockMode = () => {
@@ -74,17 +97,21 @@ export default function AdviceScreen() {
         return <AdviceLoading />;
       case 'insufficient':
         return (
-          <AdviceEmpty
-            onAdd={() => router.push('/transaction/add')}
-            onScan={() => router.push('/receipt/scan')}
-          />
+          <>
+            <AdviceEmpty
+              onAdd={() => router.push('/transaction/add')}
+              onScan={() => router.push('/receipt/scan')}
+            />
+            {/* Chưa đủ dữ liệu cho AI vẫn đặt được ngân sách */}
+            {budgetCard}
+          </>
         );
       case 'error':
         return (
           <>
             <OfflineBanner />
             <AdviceError onRetry={analyze} onReports={() => router.navigate('/reports')} />
-            <BudgetCard month={month} budgets={budgets} />
+            {budgetCard}
           </>
         );
       case 'ok':
@@ -110,7 +137,7 @@ export default function AdviceScreen() {
               ))}
             </View>
 
-            <BudgetCard month={month} budgets={budgets} onSetup={() => setBudgetSheet(true)} />
+            {budgetCard}
 
             <View style={styles.note}>
               <Ionicons name="ellipse-outline" size={8} color={colors.textMuted} style={styles.noteDot} />
@@ -147,10 +174,12 @@ export default function AdviceScreen() {
       </ScrollView>
 
       <BudgetSheet
-        visible={budgetSheet}
-        onClose={() => setBudgetSheet(false)}
+        visible={editingBudget !== undefined}
+        budget={editingBudget}
+        existing={budgets ?? []}
+        onClose={() => setEditingBudget(undefined)}
         onSaved={() => {
-          setBudgetSheet(false);
+          setEditingBudget(undefined);
           loadBudgets();
           // Nhận xét có nhắc tới ngân sách nên phân tích lại theo hạn mức mới
           analyze();
