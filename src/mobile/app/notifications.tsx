@@ -5,7 +5,8 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 import { SegmentedControl } from '@/components/SegmentedControl';
-import { NOTIFICATION_LOOK } from '@/features/notifications/notificationLook';
+import { listBudgetAlerts, type Budget } from '@/features/budgets/budgetsApi';
+import { lookOf } from '@/features/notifications/notificationLook';
 import {
   clearAllForDemo,
   getNotifications,
@@ -13,7 +14,7 @@ import {
   markRead,
   type AppNotification,
 } from '@/features/notifications/notificationsStore';
-import { formatDayMonth, formatRelativeDay, formatTime } from '@/lib/format';
+import { formatDayMonth, formatRelativeDay, formatTime, formatVnd } from '@/lib/format';
 import { colors, radius, spacing } from '@/theme';
 
 type Tab = 'all' | 'unread';
@@ -31,9 +32,19 @@ export default function InboxScreen() {
   const router = useRouter();
   const [items, setItems] = useState<AppNotification[]>([]);
   const [tab, setTab] = useState<Tab>('all');
+  const [budgetAlerts, setBudgetAlerts] = useState<Budget[]>([]);
 
   const reload = useCallback(() => setItems(getNotifications()), []);
   useFocusEffect(reload);
+
+  // Tình trạng ngân sách hiện tại (server tính), không phải thông báo lưu trong Hộp thư
+  useFocusEffect(
+    useCallback(() => {
+      listBudgetAlerts()
+        .then(setBudgetAlerts)
+        .catch(() => setBudgetAlerts([]));
+    }, []),
+  );
 
   const unread = items.filter((n) => !n.read).length;
   const shown = tab === 'unread' ? items.filter((n) => !n.read) : items;
@@ -48,13 +59,47 @@ export default function InboxScreen() {
 
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/'));
 
+  const renderBudgetAlerts = () =>
+    budgetAlerts.length > 0 && (
+      <View style={styles.group}>
+        <Text style={styles.groupTitle}>NGÂN SÁCH THÁNG NÀY</Text>
+        <View style={styles.card}>
+          {budgetAlerts.map((b, i) => {
+            const exceeded = b.status === 'exceeded';
+            const look = lookOf({ type: 'budget', tone: exceeded ? 'danger' : undefined });
+            const title = exceeded ? `Đã vượt ngân sách ${b.name}` : `${b.name} đã dùng ${Math.round(b.percent)}% ngân sách`;
+            const body = exceeded
+              ? `Vượt ${formatVnd(b.remaining)} so với hạn mức ${formatVnd(b.amount)}.`
+              : `Đã chi ${formatVnd(b.spent)} / ${formatVnd(b.amount)}, còn ${formatVnd(b.remaining)}.`;
+            return (
+              <Pressable
+                key={b.id}
+                style={({ pressed }) => [styles.item, i < budgetAlerts.length - 1 && styles.divider, pressed && styles.pressed]}
+                onPress={() => router.navigate('/advice')}
+                accessibilityRole="button"
+                accessibilityLabel={`${title}. ${body}`}
+              >
+                <View style={[styles.icon, { backgroundColor: look.bg }]}>
+                  <Ionicons name={look.icon} size={20} color={look.fg} />
+                </View>
+                <View style={styles.texts}>
+                  <Text style={styles.title}>{title}</Text>
+                  <Text style={styles.body}>{body}</Text>
+                </View>
+              </Pressable>
+            );
+          })}
+        </View>
+      </View>
+    );
+
   const renderGroup = (title: string, list: AppNotification[]) =>
     list.length > 0 && (
       <View style={styles.group}>
         <Text style={styles.groupTitle}>{title}</Text>
         <View style={styles.card}>
           {list.map((n, i) => {
-            const look = NOTIFICATION_LOOK[n.type];
+            const look = lookOf(n);
             return (
               <Pressable
                 key={n.id}
@@ -114,7 +159,7 @@ export default function InboxScreen() {
         </Pressable>
       </View>
 
-      {items.length === 0 ? (
+      {items.length === 0 && budgetAlerts.length === 0 ? (
         <EmptyInbox onSettings={() => router.push('/notification-settings')} />
       ) : (
         <ScrollView contentContainerStyle={styles.content}>
@@ -126,7 +171,8 @@ export default function InboxScreen() {
             value={tab}
             onChange={setTab}
           />
-          {shown.length === 0 ? (
+          {renderBudgetAlerts()}
+          {shown.length === 0 && budgetAlerts.length > 0 ? null : shown.length === 0 ? (
             <View style={styles.allRead}>
               <Ionicons name="checkmark-done-circle-outline" size={36} color={colors.primary} />
               <Text style={styles.allReadText}>Bạn đã đọc hết thông báo.</Text>

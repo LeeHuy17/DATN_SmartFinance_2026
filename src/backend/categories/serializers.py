@@ -36,4 +36,9 @@ class CategorySerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(
                 {"kind": "Danh mục đã có giao dịch nên không thể đổi giữa Chi và Thu."}
             )
+        # Ngân sách chỉ đặt cho danh mục chi; đổi sang Thu thì ngân sách luôn báo đã chi 0đ
+        if self.instance and kind != self.instance.kind and self.instance.budgets.exists():
+            raise serializers.ValidationError(
+                {"kind": "Danh mục đang có ngân sách nên không thể đổi sang Thu. Hãy xóa ngân sách trước."}
+            )
         return attrs

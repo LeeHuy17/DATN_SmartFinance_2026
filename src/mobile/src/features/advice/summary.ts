@@ -1,8 +1,9 @@
 import type { Transaction } from '@/features/transactions/types';
 
-/** Ngân sách một danh mục trong tháng, kèm số đã chi */
+/** Ngân sách trong tháng kèm số đã chi (server tính, xem budgets/budgetsApi.ts) */
 export type BudgetUsage = {
-  categoryId: string;
+  /** null = ngân sách tổng chi tiêu */
+  categoryId: string | null;
   name: string;
   limit: number;
   spent: number;
@@ -40,7 +41,7 @@ const DAY = 86_400_000;
 
 export function buildSummary(
   all: Transaction[],
-  budgetLimits: Record<string, number>,
+  budgets: BudgetUsage[],
   now = new Date(),
 ): SpendingSummary {
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -63,16 +64,6 @@ export function buildSummary(
     else if (time >= prev7From && time < last7From) entry.previous7Days += -t.amount;
     byCategory.set(t.category.id, entry);
   }
-
-  const budgets: BudgetUsage[] = Object.entries(budgetLimits).map(([categoryId, limit]) => {
-    const name = all.find((t) => t.category.id === categoryId)?.category.name ?? '';
-    return {
-      categoryId,
-      name,
-      limit,
-      spent: expenses.filter((t) => t.category.id === categoryId).reduce((s, t) => s - t.amount, 0),
-    };
-  });
 
   return {
     month: now.getMonth() + 1,

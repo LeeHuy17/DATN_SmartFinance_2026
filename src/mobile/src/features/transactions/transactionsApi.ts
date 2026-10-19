@@ -1,5 +1,6 @@
+import { toBudgetAlert, type ApiBudgetAlert } from '@/features/budgets/budgetsApi';
 import * as categoriesApi from '@/features/categories/categoriesApi';
-import { withBudgetAlert } from '@/features/notifications/budgetAlerts';
+import { notifyBudgetAlerts } from '@/features/notifications/budgetAlerts';
 import * as walletsApi from '@/features/wallets/walletsApi';
 import { ApiError, apiFetch } from '@/lib/api/client';
 import { fromYmd } from '@/lib/date';
@@ -33,6 +34,8 @@ export type ApiTransaction = {
   date: string;
   created_at: string;
   updated_at: string;
+  /** Chỉ có khi tạo / sửa giao dịch chi: các ngân sách vừa chạm ngưỡng hoặc vượt mức */
+  budget_alerts?: ApiBudgetAlert[];
 };
 
 export type Page<T> = { count: number; next: string | null; previous: string | null; results: T[] };
@@ -56,6 +59,7 @@ const toTransaction = (t: ApiTransaction): Transaction => {
     amount: t.kind === 'expense' ? -amount : amount,
     date: fromYmd(t.date).toISOString(),
     source: t.source,
+    budgetAlerts: t.budget_alerts?.map(toBudgetAlert),
   };
 };
 
@@ -87,7 +91,7 @@ export async function listTransactions(filters: TransactionFilters = {}): Promis
   return { items: data.results.map(toTransaction), count: data.count, hasMore: data.next !== null };
 }
 
-/** Mọi giao dịch khớp bộ lọc (gom nhiều trang), dùng cho báo cáo / ngân sách tính ở app */
+/** Mọi giao dịch khớp bộ lọc (gom nhiều trang), dùng cho báo cáo / tư vấn tính ở app */
 export async function listAllTransactions(filters: TransactionFilters = {}): Promise<Transaction[]> {
   const MAX_PAGES = 50;
   const all: Transaction[] = [];
@@ -109,21 +113,24 @@ export async function getTransaction(id: string): Promise<Transaction | null> {
   }
 }
 
+/** Hiện ngay cảnh báo ngân sách server trả kèm (budget_alerts), không cần gọi thêm API */
+const withAlerts = (t: Transaction) => {
+  notifyBudgetAlerts(t.budgetAlerts);
+  return t;
+};
+
 /** Lỗi 400 (ví đã lưu trữ, danh mục đang ẩn...) đọc bằng getFieldErrors(e) */
 export async function createTransaction(input: TransactionInput): Promise<Transaction> {
-  return withBudgetAlert(input.categoryId, async () =>
-    toTransaction(
-      await apiFetch<ApiTransaction>('/transactions/', { method: 'POST', body: toBody(input) }),
-    ),
-  );
+  const data = await apiFetch<ApiTransaction>('/transactions/', { method: 'POST', body: toBody(input) });
+  return withAlerts(toTransaction(data));
 }
 
 export async function updateTransaction(id: string, input: Partial<TransactionInput>): Promise<Transaction> {
-  const save = async () =>
-    toTransaction(
-      await apiFetch<ApiTransaction>(`/transactions/${id}/`, { method: 'PATCH', body: toBody(input) }),
-    );
-  return input.categoryId ? withBudgetAlert(input.categoryId, save) : save();
+  const data = await apiFetch<ApiTransaction>(`/transactions/${id}/`, {
+    method: 'PATCH',
+    body: toBody(input),
+  });
+  return withAlerts(toTransaction(data));
 }
 
 export async function deleteTransaction(id: string): Promise<void> {

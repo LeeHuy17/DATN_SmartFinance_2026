@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { BalanceCard } from '@/features/dashboard/components/BalanceCard';
+import { BudgetAlertCard } from '@/features/dashboard/components/BudgetAlertCard';
 import { DashboardHeader } from '@/features/dashboard/components/DashboardHeader';
 import { DashboardSkeleton } from '@/features/dashboard/components/DashboardSkeleton';
 import { SectionHeader } from '@/features/dashboard/components/SectionHeader';
@@ -50,6 +51,8 @@ export default function OverviewScreen() {
           monthIncome={data.monthIncome}
           monthExpense={data.monthExpense}
         />
+
+        <BudgetAlertCard alerts={data.budgetAlerts} onPress={() => router.navigate('/advice')} />
 
         {/* Viền xanh nền trắng để tách biệt với thẻ số dư */}
         <Pressable

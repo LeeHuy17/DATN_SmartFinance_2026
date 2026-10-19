@@ -23,6 +23,7 @@ INSTALLED_APPS = [
     "transactions",
     "categories.apps.CategoriesConfig",
     "wallets",
+    "budgets",
 ]
 
 MIDDLEWARE = [

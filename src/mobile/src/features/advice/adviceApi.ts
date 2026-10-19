@@ -1,6 +1,8 @@
-import * as store from '@/features/transactions/localStore';
-import { listSummaryTransactions } from './budgetsApi';
-import { MIN_EXPENSES_FOR_ADVICE, buildSummary, type SpendingSummary } from './summary';
+import { listBudgets } from '@/features/budgets/budgetsApi';
+import { listAllTransactions } from '@/features/transactions/transactionsApi';
+import type { Transaction } from '@/features/transactions/types';
+import { addDays, toYmd } from '@/lib/date';
+import { MIN_EXPENSES_FOR_ADVICE, buildSummary, type BudgetUsage, type SpendingSummary } from './summary';
 
 export type Advice = {
   month: number;
@@ -36,14 +38,28 @@ export const cycleMockMode = () => {
 const fakeDelay = (ms = 1500) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
+ * Giao dịch đủ cho buildSummary: từ đầu tháng, và 14 ngày gần nhất (so sánh 7 ngày này với
+ * 7 ngày trước) có thể lùi sang tháng trước.
+ */
+function listSummaryTransactions(now = new Date()): Promise<Transaction[]> {
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const twoWeeksAgo = addDays(now, -13);
+  const from = twoWeeksAgo < monthStart ? twoWeeksAgo : monthStart;
+  return listAllTransactions({ date_from: toYmd(from), date_to: toYmd(now) });
+}
+
+/**
  * Lấy lời khuyên cho tháng hiện tại.
  * TODO: thay phần giả lập bằng apiFetch('/advice', { method: 'POST', body: JSON.stringify(summary) }).
  * Chỉ gửi `SpendingSummary` (số liệu tổng hợp), không gửi giao dịch chi tiết.
  */
 export async function getAdvice(): Promise<AdviceResult> {
-  const summary = buildSummary(await listSummaryTransactions(), store.getBudgets());
-  // Tên danh mục cho ngân sách lấy từ danh mục hiện tại
-  summary.budgets = summary.budgets.map((b) => ({ ...b, name: store.getCategory(b.categoryId)?.name ?? b.name }));
+  const [transactions, budgets] = await Promise.all([listSummaryTransactions(), listBudgets()]);
+  // Ngân sách đang bật của tháng này, số đã chi do server tính
+  const usage: BudgetUsage[] = budgets
+    .filter((b) => b.isActive)
+    .map((b) => ({ categoryId: b.categoryId, name: b.name, limit: b.amount, spent: b.spent }));
+  const summary = buildSummary(transactions, usage);
 
   await fakeDelay();
   if (mockMode === 'offline') throw new AdviceUnavailableError();

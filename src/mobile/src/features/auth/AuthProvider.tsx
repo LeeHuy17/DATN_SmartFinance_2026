@@ -11,14 +11,12 @@ import {
 
 import { clearAllForDemo as clearNotifications } from '@/features/notifications/notificationsStore';
 import { clearProfile } from '@/features/profile/profileStore';
-import { resetLocalData } from '@/features/transactions/localStore';
 
 import { logout } from './loginApi';
 
 /** Xóa dữ liệu của tài khoản hiện tại đang giữ trong bộ nhớ, để tài khoản đăng nhập sau không thấy */
 const clearUserData = () => {
   clearProfile();
-  resetLocalData();
   clearNotifications();
 };
 
