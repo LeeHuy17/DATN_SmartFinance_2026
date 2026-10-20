@@ -24,6 +24,7 @@ INSTALLED_APPS = [
     "categories.apps.CategoriesConfig",
     "wallets",
     "budgets",
+    "reports",
 ]
 
 MIDDLEWARE = [
