@@ -26,6 +26,7 @@ INSTALLED_APPS = [
     "budgets",
     "reports",
     "notifications",
+    "advisor",
 ]
 
 MIDDLEWARE = [
@@ -82,6 +83,10 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": (
         "rest_framework.permissions.IsAuthenticated",
     ),
+    # Chỉ áp dụng cho view có throttle_scope tương ứng (ScopedRateThrottle)
+    "DEFAULT_THROTTLE_RATES": {
+        "advisor": "20/hour",
+    },
 }
 
 SIMPLE_JWT = {
@@ -124,3 +129,9 @@ else:
 DEFAULT_FROM_EMAIL = os.environ.get(
     "DEFAULT_FROM_EMAIL", f"Smart Finance <{EMAIL_HOST_USER or 'no-reply@smartfinance.local'}>"
 )
+
+# Trợ lý AI (Groq, API tương thích OpenAI). Llama 3.3 70B đã bị Groq gỡ ngày 16/08/2026,
+# nên tên model đọc từ .env để đổi mà không sửa code
+GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
+GROQ_MODEL = os.environ.get("GROQ_MODEL", "openai/gpt-oss-120b")
+GROQ_TIMEOUT = int(os.environ.get("GROQ_TIMEOUT", "30"))
