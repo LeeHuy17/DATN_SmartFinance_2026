@@ -1,5 +1,5 @@
-import { useCallback, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useRef, useState } from 'react';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,13 +7,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { SegmentedControl } from '@/components/SegmentedControl';
 import { listBudgetAlerts, type Budget } from '@/features/budgets/budgetsApi';
 import { lookOf } from '@/features/notifications/notificationLook';
+import { showToast } from '@/components/Toast';
 import {
-  clearAllForDemo,
-  getNotifications,
+  getUnreadCount,
+  listNotifications,
   markAllRead,
   markRead,
-  type AppNotification,
-} from '@/features/notifications/notificationsStore';
+} from '@/features/notifications/notificationsApi';
+import type { AppNotification } from '@/features/notifications/notificationsStore';
 import { formatDayMonth, formatRelativeDay, formatTime, formatVnd } from '@/lib/format';
 import { colors, radius, spacing } from '@/theme';
 
@@ -30,12 +31,60 @@ function timeLabel(iso: string) {
 
 export default function InboxScreen() {
   const router = useRouter();
-  const [items, setItems] = useState<AppNotification[]>([]);
+  const [items, setItems] = useState<AppNotification[] | null>(null);
+  const [unread, setUnread] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [error, setError] = useState(false);
   const [tab, setTab] = useState<Tab>('all');
   const [budgetAlerts, setBudgetAlerts] = useState<Budget[]>([]);
+  const page = useRef(1);
+  // Đổi tab liên tục thì chỉ giữ kết quả của lần tải mới nhất
+  const requestId = useRef(0);
 
-  const reload = useCallback(() => setItems(getNotifications()), []);
-  useFocusEffect(reload);
+  const reload = useCallback(async () => {
+    const id = ++requestId.current;
+    setError(false);
+    try {
+      const [first, count] = await Promise.all([
+        listNotifications({ unread: tab === 'unread' }),
+        getUnreadCount(),
+      ]);
+      if (id !== requestId.current) return;
+      page.current = 1;
+      setItems(first.items);
+      setHasMore(first.hasMore);
+      setUnread(count);
+    } catch {
+      if (id === requestId.current) setError(true);
+    }
+  }, [tab]);
+
+  useFocusEffect(
+    useCallback(() => {
+      reload();
+    }, [reload]),
+  );
+
+  const loadMore = async () => {
+    if (!hasMore || loadingMore) return;
+    const id = requestId.current;
+    setLoadingMore(true);
+    try {
+      const next = await listNotifications({ page: page.current + 1, unread: tab === 'unread' });
+      if (id !== requestId.current) return;
+      page.current += 1;
+      setItems((prev) => {
+        const seen = new Set(prev?.map((n) => n.id));
+        return [...(prev ?? []), ...next.items.filter((n) => !seen.has(n.id))];
+      });
+      setHasMore(next.hasMore);
+    } catch {
+      showToast('Không tải thêm được. Vui lòng thử lại.', 'alert-circle');
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   // Tình trạng ngân sách hiện tại (server tính), không phải thông báo lưu trong Hộp thư
   useFocusEffect(
@@ -46,15 +95,27 @@ export default function InboxScreen() {
     }, []),
   );
 
-  const unread = items.filter((n) => !n.read).length;
-  const shown = tab === 'unread' ? items.filter((n) => !n.read) : items;
+  const shown = items ?? [];
   const today = shown.filter((n) => isToday(n.createdAt));
   const earlier = shown.filter((n) => !isToday(n.createdAt));
 
   const open = (n: AppNotification) => {
-    markRead(n.id);
-    reload();
+    if (!n.read) {
+      // Đổi ngay trên màn hình, lưu lên server phía sau
+      setItems((prev) => prev?.map((x) => (x.id === n.id ? { ...x, read: true } : x)) ?? null);
+      setUnread((c) => Math.max(0, c - 1));
+      markRead(n.id).catch(() => undefined);
+    }
     if (n.link) router.push(n.link);
+  };
+
+  const readAll = async () => {
+    try {
+      await markAllRead();
+      reload();
+    } catch {
+      showToast('Không đánh dấu được. Vui lòng thử lại.', 'alert-circle');
+    }
   };
 
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/'));
@@ -132,23 +193,11 @@ export default function InboxScreen() {
         <Pressable onPress={goBack} hitSlop={12} accessibilityRole="button" accessibilityLabel="Quay lại">
           <Ionicons name="chevron-back" size={26} color={colors.text} />
         </Pressable>
-        {/* Chỉ trong bản dev: giữ tay lên tiêu đề để xóa hết thông báo mẫu, xem trạng thái trống */}
-        <Pressable
-          style={styles.headerTitleBox}
-          onLongPress={() => {
-            if (!__DEV__) return;
-            clearAllForDemo();
-            reload();
-          }}
-          delayLongPress={600}
-        >
+        <View style={styles.headerTitleBox}>
           <Text style={styles.headerTitle}>Hộp thư</Text>
-        </Pressable>
+        </View>
         <Pressable
-          onPress={() => {
-            markAllRead();
-            reload();
-          }}
+          onPress={readAll}
           disabled={unread === 0}
           hitSlop={12}
           style={unread === 0 && styles.disabled}
@@ -159,7 +208,14 @@ export default function InboxScreen() {
         </Pressable>
       </View>
 
-      {items.length === 0 && budgetAlerts.length === 0 ? (
+      {error && !items ? (
+        <Pressable style={styles.allRead} onPress={reload} accessibilityRole="button">
+          <Ionicons name="cloud-offline-outline" size={36} color={colors.textMuted} />
+          <Text style={styles.allReadText}>Không tải được Hộp thư. Chạm để thử lại.</Text>
+        </Pressable>
+      ) : !items ? (
+        <ActivityIndicator style={styles.loading} color={colors.primary} />
+      ) : items.length === 0 && budgetAlerts.length === 0 && tab === 'all' ? (
         <EmptyInbox onSettings={() => router.push('/notification-settings')} />
       ) : (
         <ScrollView contentContainerStyle={styles.content}>
@@ -181,6 +237,15 @@ export default function InboxScreen() {
             <>
               {renderGroup('HÔM NAY', today)}
               {renderGroup('TRƯỚC ĐÓ', earlier)}
+              {hasMore && (
+                <Pressable style={styles.more} onPress={loadMore} disabled={loadingMore} accessibilityRole="button">
+                  {loadingMore ? (
+                    <ActivityIndicator color={colors.primary} />
+                  ) : (
+                    <Text style={styles.moreText}>Xem thêm thông báo cũ</Text>
+                  )}
+                </Pressable>
+              )}
             </>
           )}
         </ScrollView>
@@ -197,7 +262,7 @@ function EmptyInbox({ onSettings }: { onSettings: () => void }) {
       </View>
       <Text style={styles.emptyTitle}>Hộp thư trống</Text>
       <Text style={styles.emptyText}>
-        Thông báo về ngân sách, hóa đơn và lời khuyên AI sẽ xuất hiện ở đây.
+        Cảnh báo ngân sách, nhắc ghi chép và thông báo bảo mật sẽ xuất hiện ở đây.
       </Text>
       <Pressable style={styles.emptyButton} onPress={onSettings} accessibilityRole="button">
         <Text style={styles.emptyButtonText}>Cài đặt thông báo</Text>
@@ -207,6 +272,9 @@ function EmptyInbox({ onSettings }: { onSettings: () => void }) {
 }
 
 const styles = StyleSheet.create({
+  loading: { marginTop: spacing.xl },
+  more: { marginTop: spacing.md, paddingVertical: spacing.sm, alignItems: 'center' },
+  moreText: { fontSize: 14, fontWeight: '700', color: colors.primary },
   safe: { flex: 1, backgroundColor: colors.screen },
   header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
   headerTitleBox: { flex: 1 },

@@ -9,7 +9,7 @@ import {
   setToken,
 } from '@/lib/storage';
 
-import { clearAllForDemo as clearNotifications } from '@/features/notifications/notificationsStore';
+import { clearNotificationCache } from '@/features/notifications/notificationsStore';
 import { clearProfile } from '@/features/profile/profileStore';
 
 import { logout } from './loginApi';
@@ -17,7 +17,7 @@ import { logout } from './loginApi';
 /** Xóa dữ liệu của tài khoản hiện tại đang giữ trong bộ nhớ, để tài khoản đăng nhập sau không thấy */
 const clearUserData = () => {
   clearProfile();
-  clearNotifications();
+  clearNotificationCache();
 };
 
 type AuthContextValue = {
