@@ -53,17 +53,26 @@ export function AdviceLoading() {
   );
 }
 
-/** Chưa đủ dữ liệu: gợi ý ghi thêm giao dịch */
-export function AdviceEmpty({ onAdd, onScan }: { onAdd: () => void; onScan: () => void }) {
+type EmptyProps = {
+  /** Số giao dịch đã có trong tháng và số tối thiểu để AI phân tích (từ insufficient_data của server) */
+  transactions: number;
+  minTransactions: number;
+  onAdd: () => void;
+  onScan: () => void;
+};
+
+/** Chưa đủ dữ liệu: cho biết cần thêm bao nhiêu giao dịch */
+export function AdviceEmpty({ transactions, minTransactions, onAdd, onScan }: EmptyProps) {
+  const needed = Math.max(1, minTransactions - transactions);
   return (
     <View style={styles.empty}>
       <View style={[styles.circle, { backgroundColor: colors.primarySoft }]}>
         <Ionicons name="sparkles-outline" size={30} color={colors.primary} />
       </View>
-      <Text style={styles.emptyTitle}>Chưa đủ dữ liệu để phân tích</Text>
+      <Text style={styles.emptyTitle}>Cần thêm {needed} giao dịch</Text>
       <Text style={styles.emptyText}>
-        Hãy ghi nhận thêm vài khoản thu chi trong tháng này, AI sẽ đưa ra nhận xét và lời khuyên sát với
-        thói quen của bạn.
+        Tháng này mới có {transactions}/{minTransactions} giao dịch. Hãy ghi thêm để AI đưa ra nhận xét và
+        lời khuyên sát với thói quen của bạn.
       </Text>
       <PrimaryButton title="Thêm giao dịch" onPress={onAdd} style={styles.stretch} />
       <SecondaryButton title="Quét hóa đơn" onPress={onScan} />
@@ -71,27 +80,35 @@ export function AdviceEmpty({ onAdd, onScan }: { onAdd: () => void; onScan: () =
   );
 }
 
-/** Banner vàng: AI ngoại tuyến nhưng dữ liệu vẫn an toàn */
-export function OfflineBanner() {
+/** Dải vàng báo một việc không làm được (vd. phân tích quá nhiều lần) trong khi kết quả cũ vẫn hiển thị */
+export function NoticeBanner({ text }: { text: string }) {
   return (
     <View style={styles.banner} accessibilityRole="alert">
-      <Ionicons name="cloud-offline-outline" size={18} color={colors.warm} />
-      <Text style={styles.bannerText}>
-        <Text style={styles.bannerStrong}>AI đang ngoại tuyến.</Text> Giao dịch của bạn vẫn được lưu bình thường.
-      </Text>
+      <Ionicons name="alert-circle-outline" size={18} color={colors.warm} />
+      <Text style={styles.bannerText}>{text}</Text>
     </View>
   );
 }
 
-/** Lỗi kết nối AI: thử lại hoặc xem báo cáo (không cần AI) */
-export function AdviceError({ onRetry, onReports }: { onRetry: () => void; onReports: () => void }) {
+/** Không lấy được lời khuyên (mất mạng, server lỗi, quá giới hạn): thử lại hoặc xem báo cáo (không cần AI) */
+export function AdviceError({
+  message,
+  onRetry,
+  onReports,
+}: {
+  message?: string | null;
+  onRetry: () => void;
+  onReports: () => void;
+}) {
   return (
     <View style={[styles.card, styles.errorCard]}>
       <View style={[styles.circle, styles.circleSmall, { backgroundColor: colors.dangerSoft }]}>
         <Ionicons name="cloud-offline-outline" size={26} color={colors.danger} />
       </View>
-      <Text style={styles.errorTitle}>Chưa kết nối được trợ lý AI</Text>
-      <Text style={styles.errorText}>Dịch vụ tạm thời không phản hồi. Kiểm tra mạng rồi thử lại sau ít phút.</Text>
+      <Text style={styles.errorTitle}>Chưa tải được lời khuyên</Text>
+      <Text style={styles.errorText}>
+        {message ?? 'Không kết nối được tới máy chủ. Kiểm tra mạng rồi thử lại sau ít phút.'}
+      </Text>
       <PrimaryButton title="Thử lại" onPress={onRetry} style={styles.stretch} />
       <SecondaryButton title="Xem báo cáo" onPress={onReports} />
     </View>
@@ -144,7 +161,6 @@ const styles = StyleSheet.create({
     backgroundColor: colors.warmSoft,
   },
   bannerText: { flex: 1, fontSize: 14, lineHeight: 20, color: colors.warm },
-  bannerStrong: { fontWeight: '700' },
   errorCard: { alignItems: 'center', gap: spacing.sm + 2, paddingVertical: spacing.lg },
   errorTitle: { marginTop: spacing.xs, fontSize: 17, fontWeight: '700', color: colors.text, textAlign: 'center' },
   errorText: { fontSize: 14, lineHeight: 20, color: colors.textMuted, textAlign: 'center', marginBottom: spacing.xs },

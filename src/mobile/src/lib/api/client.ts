@@ -43,15 +43,23 @@ export const setOnSessionExpired = (handler: (() => void) | null) => {
   onSessionExpired = handler;
 };
 
-async function request(path: string, init: RequestInit, token: string | null) {
-  return fetch(`${BASE_URL}${path}`, {
-    ...init,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...init.headers,
-    },
-  });
+async function request(path: string, init: RequestInit, token: string | null, timeoutMs?: number) {
+  // Có timeoutMs thì tự hủy request khi quá hạn (fetch mặc định không có thời gian chờ)
+  const controller = timeoutMs ? new AbortController() : null;
+  const timer = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
+  try {
+    return await fetch(`${BASE_URL}${path}`, {
+      ...init,
+      ...(controller ? { signal: controller.signal } : {}),
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...init.headers,
+      },
+    });
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 }
 
 // Nhiều request cùng nhận 401 thì chỉ gọi refresh một lần
@@ -75,15 +83,17 @@ async function refreshAccessToken(): Promise<string | null> {
 type ApiOptions = {
   /** false cho các API không cần đăng nhập (đăng ký, đăng nhập) để không gửi kèm token cũ */
   auth?: boolean;
+  /** Quá thời gian này (ms) thì hủy request và ném lỗi; dùng cho request chậm như gọi AI */
+  timeoutMs?: number;
 };
 
 export async function apiFetch<T>(
   path: string,
   init: RequestInit = {},
-  { auth = true }: ApiOptions = {},
+  { auth = true, timeoutMs }: ApiOptions = {},
 ): Promise<T> {
   const token = auth ? await getToken() : null;
-  let res = await request(path, init, token);
+  let res = await request(path, init, token, timeoutMs);
 
   if (res.status === 401 && token) {
     refreshing ??= refreshAccessToken().finally(() => {
@@ -91,7 +101,7 @@ export async function apiFetch<T>(
     });
     const newToken = await refreshing;
     if (newToken) {
-      res = await request(path, init, newToken);
+      res = await request(path, init, newToken, timeoutMs);
     } else {
       await Promise.all([clearToken(), clearRefreshToken()]);
       onSessionExpired?.();
