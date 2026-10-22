@@ -9,6 +9,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from budgets.services import alerts_for
+from notifications.services import notify_budget_alerts
 
 from .filters import StableOrderingFilter, TransactionFilter
 from .models import Transaction
@@ -35,9 +36,11 @@ class TransactionViewSet(viewsets.ModelViewSet):
     def _with_alerts(self, response):
         data = response.data
         if response.status_code in (200, 201) and data.get("kind") == "expense":
-            data["budget_alerts"] = alerts_for(
-                self.request.user, date.fromisoformat(data["date"]), data["category"]
-            )
+            tx_date = date.fromisoformat(data["date"])
+            alerts = alerts_for(self.request.user, tx_date, data["category"])
+            data["budget_alerts"] = alerts
+            # Lưu vào Hộp thư; mỗi mốc của mỗi ngân sách chỉ báo một lần trong tháng
+            notify_budget_alerts(self.request.user, alerts, tx_date.strftime("%Y-%m"))
         return response
 
     def create(self, request, *args, **kwargs):
