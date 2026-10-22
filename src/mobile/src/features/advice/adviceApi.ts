@@ -1,115 +1,52 @@
-import { listBudgets } from '@/features/budgets/budgetsApi';
-import { listAllTransactions } from '@/features/transactions/transactionsApi';
-import type { Transaction } from '@/features/transactions/types';
-import { addDays, toYmd } from '@/lib/date';
-import { MIN_EXPENSES_FOR_ADVICE, buildSummary, type BudgetUsage, type SpendingSummary } from './summary';
+import { ApiError, apiFetch } from '@/lib/api/client';
 
-export type Advice = {
-  month: number;
-  /** Nhận xét tổng quan (1–2 câu) */
-  insight: string;
-  /** Gợi ý hành động cụ thể, tối đa 3 */
-  actions: string[];
+// Lời khuyên do server tạo (backend/advisor): số liệu do Python tính, AI (Groq) chỉ viết lời.
+// App không còn tải giao dịch về để tự tính xu hướng hay soạn lời khuyên.
+
+export type Insights = {
+  /** Nhận xét tổng quan */
+  summary: string;
+  /** Xu hướng; direction chỉ hướng thay đổi (up: tăng, down: giảm) */
+  trends: { title: string; detail: string; direction: 'up' | 'down' | 'flat' }[];
+  advice: { title: string; detail: string; priority: 'high' | 'medium' | 'low' }[];
 };
 
-export type AdviceResult =
-  | { status: 'ok'; advice: Advice }
-  /** Chưa đủ giao dịch trong tháng để phân tích */
-  | { status: 'insufficient' };
+export type AdvisorResult =
+  | {
+      status: 'ok';
+      /** "2026-10" */
+      month: string;
+      /** llm: do AI viết; rules: gợi ý cơ bản theo luật khi AI không khả dụng */
+      source: 'llm' | 'rules';
+      insights: Insights;
+      /** true: dùng lại kết quả đã lưu, không gọi AI lần nữa */
+      cached: boolean;
+      /** ISO 8601 */
+      generated_at: string;
+      disclaimer: string;
+    }
+  | { status: 'insufficient_data'; min_transactions: number; transactions: number }
+  /** Chưa có kết quả đã lưu cho tháng này */
+  | { status: 'none' };
 
-/** Dịch vụ AI không phản hồi / mất mạng */
-export class AdviceUnavailableError extends Error {
-  constructor() {
-    super('ADVICE_UNAVAILABLE');
-  }
-}
+/** Kết quả có thể hiển thị (không gồm "none") */
+export type ShownAdvice = Exclude<AdvisorResult, { status: 'none' }>;
 
-// ---------- Chế độ giả lập (chỉ để xem các trạng thái giao diện khi chưa có backend) ----------
+/** Gọi AI có thể mất vài giây: lớn hơn GROQ_TIMEOUT (30 giây) của server để nhận được phương án dự phòng */
+const RUN_TIMEOUT_MS = 40_000;
 
-export type MockMode = 'auto' | 'offline' | 'insufficient';
-let mockMode: MockMode = 'auto';
-export const getMockMode = () => mockMode;
-const MODES: MockMode[] = ['auto', 'offline', 'insufficient'];
-export const cycleMockMode = () => {
-  mockMode = MODES[(MODES.indexOf(mockMode) + 1) % MODES.length];
-  return mockMode;
-};
-
-const fakeDelay = (ms = 1500) => new Promise((resolve) => setTimeout(resolve, ms));
-
-/**
- * Giao dịch đủ cho buildSummary: từ đầu tháng, và 14 ngày gần nhất (so sánh 7 ngày này với
- * 7 ngày trước) có thể lùi sang tháng trước.
- */
-function listSummaryTransactions(now = new Date()): Promise<Transaction[]> {
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const twoWeeksAgo = addDays(now, -13);
-  const from = twoWeeksAgo < monthStart ? twoWeeksAgo : monthStart;
-  return listAllTransactions({ date_from: toYmd(from), date_to: toYmd(now) });
-}
+/** Đọc kết quả đã lưu của tháng `month` ("YYYY-MM"), nhanh và không gọi AI */
+export const getAdvice = (month: string) => apiFetch<AdvisorResult>(`/advisor/insights/?month=${month}`);
 
 /**
- * Lấy lời khuyên cho tháng hiện tại.
- * TODO: thay phần giả lập bằng apiFetch('/advice', { method: 'POST', body: JSON.stringify(summary) }).
- * Chỉ gửi `SpendingSummary` (số liệu tổng hợp), không gửi giao dịch chi tiết.
+ * Phân tích tháng `month`. force: bỏ qua thời gian chờ 10 phút khi số liệu đã đổi
+ * (số liệu không đổi thì server vẫn dùng lại kết quả). Giới hạn 20 lần mỗi giờ, quá thì lỗi 429.
  */
-export async function getAdvice(): Promise<AdviceResult> {
-  const [transactions, budgets] = await Promise.all([listSummaryTransactions(), listBudgets()]);
-  // Ngân sách đang bật của tháng này, số đã chi do server tính
-  const usage: BudgetUsage[] = budgets
-    .filter((b) => b.isActive)
-    .map((b) => ({ categoryId: b.categoryId, name: b.name, limit: b.amount, spent: b.spent }));
-  const summary = buildSummary(transactions, usage);
+export const runAdvice = (month: string, force = false) =>
+  apiFetch<AdvisorResult>(
+    '/advisor/insights/',
+    { method: 'POST', body: JSON.stringify({ month, force }) },
+    { timeoutMs: RUN_TIMEOUT_MS },
+  );
 
-  await fakeDelay();
-  if (mockMode === 'offline') throw new AdviceUnavailableError();
-  if (mockMode === 'insufficient' || summary.expenseCount < MIN_EXPENSES_FOR_ADVICE) return { status: 'insufficient' };
-  return { status: 'ok', advice: mockAdvice(summary) };
-}
-
-const pct = (part: number, total: number) => Math.round((part / Math.max(total, 1)) * 100);
-
-/** "AI" giả lập theo quy tắc, chỉ đọc số liệu tổng hợp */
-function mockAdvice(s: SpendingSummary): Advice {
-  const top = s.categories[0];
-  const sentences: string[] = [];
-
-  if (top) {
-    const trend =
-      top.last7Days > top.previous7Days * 1.1
-        ? 'đang tăng so với tuần trước'
-        : top.last7Days < top.previous7Days * 0.9
-          ? 'đã giảm so với tuần trước'
-          : 'tương đương tuần trước';
-    sentences.push(`Chi tiêu ${top.name.toLowerCase()} chiếm ${pct(top.amount, s.totalExpense)}% tổng chi và ${trend}.`);
-  }
-
-  // Ngân sách có nguy cơ vượt: ước tính ngày hết theo tốc độ chi hiện tại
-  const atRisk = s.budgets
-    .map((b) => {
-      const perDay = b.spent / Math.max(s.dayOfMonth, 1);
-      const runOutDay = perDay > 0 ? Math.ceil(b.limit / perDay) : Infinity;
-      return { ...b, runOutDay };
-    })
-    .filter((b) => b.spent < b.limit && b.runOutDay < s.daysInMonth)
-    .sort((a, b) => a.runOutDay - b.runOutDay)[0];
-  const over = s.budgets.find((b) => b.spent >= b.limit);
-
-  if (over) {
-    sentences.push(`Ngân sách ${over.name} đã vượt hạn mức tháng này.`);
-  } else if (atRisk) {
-    sentences.push(`Với tốc độ hiện tại, ngân sách ${atRisk.name} có thể hết trước ngày ${atRisk.runOutDay}.`);
-  } else if (s.budgets.length > 0) {
-    sentences.push('Các ngân sách đang trong tầm kiểm soát, cứ giữ nhịp chi tiêu này nhé.');
-  }
-
-  const actions: string[] = [];
-  const names = s.categories.map((c) => c.name.toLowerCase());
-  if (names.includes('ăn uống')) actions.push('Giới hạn cà phê, ăn ngoài ở mức 3 lần mỗi tuần.');
-  if (names.includes('mua sắm')) actions.push('Gom các lần đi siêu thị về một buổi cuối tuần.');
-  if (names.includes('di chuyển')) actions.push('Đi chung xe hoặc gom lịch hẹn để giảm số chuyến gọi xe.');
-  if (s.budgets.length === 0 && top) actions.push(`Đặt ngân sách cho ${top.name} để được cảnh báo sớm.`);
-  if (actions.length === 0) actions.push('Ghi lại đều đặn mỗi khoản chi để lời khuyên chính xác hơn.');
-
-  return { month: s.month, insight: sentences.join(' '), actions: actions.slice(0, 3) };
-}
+export const isRateLimited = (e: unknown) => e instanceof ApiError && e.status === 429;
