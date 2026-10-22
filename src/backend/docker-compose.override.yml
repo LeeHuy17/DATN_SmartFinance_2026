@@ -11,3 +11,7 @@ services:
              exec python manage.py runserver 0.0.0.0:8000"
     volumes:
       - .:/app
+  scheduler:
+    # Dùng code đang sửa; sửa xong chạy "docker compose restart scheduler" để nạp lại
+    volumes:
+      - .:/app

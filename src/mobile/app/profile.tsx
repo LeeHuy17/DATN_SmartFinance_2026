@@ -7,7 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { ConfirmDialog } from '@/components/ConfirmDialog';
 import { showToast } from '@/components/Toast';
 import { useAuth } from '@/features/auth/AuthProvider';
-import { getNotificationSettings } from '@/features/notifications/notificationsStore';
+import { getUnreadCount } from '@/features/notifications/notificationsApi';
 import { Avatar } from '@/features/profile/components/Avatar';
 import { AvatarSheet } from '@/features/profile/components/AvatarSheet';
 import { getProfile, getProfileNow, updateProfile, type Profile } from '@/features/profile/profileStore';
@@ -19,7 +19,7 @@ export default function ProfileScreen() {
   const router = useRouter();
   const { signOut } = useAuth();
   const [profile, setProfile] = useState<Profile>(getProfileNow);
-  const [pushOn, setPushOn] = useState(getNotificationSettings().push);
+  const [unread, setUnread] = useState(0);
   const [avatarSheet, setAvatarSheet] = useState(false);
   const [confirmSignOut, setConfirmSignOut] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
@@ -28,7 +28,9 @@ export default function ProfileScreen() {
   useFocusEffect(
     useCallback(() => {
       setProfile(getProfileNow());
-      setPushOn(getNotificationSettings().push);
+      getUnreadCount()
+        .then(setUnread)
+        .catch(() => undefined);
       // Tải lại từ server; lỗi mạng thì giữ bản đã tải trước đó
       getProfile()
         .then(setProfile)
@@ -106,7 +108,7 @@ export default function ProfileScreen() {
           <Row
             icon="notifications-outline"
             label="Thông báo"
-            value={pushOn ? 'Bật' : 'Tắt'}
+            value={unread > 0 ? `${unread} chưa đọc` : undefined}
             onPress={() => router.push('/notification-settings')}
           />
           {/* Hiện chỉ hỗ trợ tiếng Việt và giao diện sáng */}

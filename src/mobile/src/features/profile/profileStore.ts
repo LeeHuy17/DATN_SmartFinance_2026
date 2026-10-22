@@ -1,5 +1,4 @@
 // Hồ sơ người dùng lấy từ /auth/me/. Ảnh đại diện chỉ lưu trên máy vì server chưa có chỗ chứa ảnh.
-import { pushNotification } from '@/features/notifications/notificationsStore';
 import { apiFetch, getFieldErrors } from '@/lib/api/client';
 import { getAvatarUri, setAvatarUri, setRefreshToken, setToken } from '@/lib/storage';
 
@@ -111,16 +110,7 @@ export async function changePassword(current: string, next: string): Promise<voi
     if (errors.new_password) throw new NewPasswordRejectedError(errors.new_password);
     throw e;
   }
-  // Màn đổi mật khẩu đã tự hiện thông báo thành công, chỉ cần lưu vào Hộp thư
-  pushNotification(
-    {
-      type: 'security',
-      title: 'Mật khẩu đã được thay đổi',
-      body: 'Các thiết bị khác đã được đăng xuất. Nếu không phải bạn, hãy đổi mật khẩu ngay.',
-      link: '/profile',
-    },
-    { silent: true },
-  );
+  // Thông báo bảo mật trong Hộp thư do server tạo (mọi thiết bị của tài khoản đều thấy)
 }
 
 /** Xóa hồ sơ đã tải khi đăng xuất */

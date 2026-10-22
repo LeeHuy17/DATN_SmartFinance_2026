@@ -10,6 +10,8 @@ from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
 
+from notifications.services import notify_password_changed
+
 from . import password_reset
 from .serializers import (
     ChangePasswordSerializer, LoginSerializer, LogoutSerializer, PasswordResetConfirmSerializer,
@@ -47,6 +49,7 @@ class ChangePasswordView(APIView):
         user.set_password(serializer.validated_data["new_password"])
         user.save(update_fields=["password"])
         password_reset.revoke_refresh_tokens(user)
+        notify_password_changed(user)
         refresh = RefreshToken.for_user(user)
         return Response({"access": str(refresh.access_token), "refresh": str(refresh)})
 
@@ -133,4 +136,5 @@ class PasswordResetConfirmView(PasswordResetBaseView):
         user.set_password(new_password)
         user.save(update_fields=["password"])
         password_reset.revoke_refresh_tokens(user)
+        notify_password_changed(user, via_reset=True)
         return Response(status=status.HTTP_204_NO_CONTENT)

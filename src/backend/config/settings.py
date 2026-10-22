@@ -25,6 +25,7 @@ INSTALLED_APPS = [
     "wallets",
     "budgets",
     "reports",
+    "notifications",
 ]
 
 MIDDLEWARE = [

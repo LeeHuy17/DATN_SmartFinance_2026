@@ -5,7 +5,8 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 import { lookOf } from '@/features/notifications/notificationLook';
-import { markRead, onNewNotification, type AppNotification } from '@/features/notifications/notificationsStore';
+import { markRead } from '@/features/notifications/notificationsApi';
+import { onNewNotification, type BannerMessage } from '@/features/notifications/notificationsStore';
 import { colors, radius, spacing } from '@/theme';
 
 /** Banner tự ẩn sau chừng này ms */
@@ -18,7 +19,7 @@ const VISIBLE_MS = 5000;
 export function InAppBanner() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const [current, setCurrent] = useState<AppNotification | null>(null);
+  const [current, setCurrent] = useState<BannerMessage | null>(null);
   const translateY = useRef(new Animated.Value(-200)).current;
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const native = Platform.OS !== 'web';
@@ -52,7 +53,8 @@ export function InAppBanner() {
       <Pressable
         style={styles.banner}
         onPress={() => {
-          markRead(current.id);
+          // Banner ứng với thông báo đã lưu thì đánh dấu đã đọc; lỗi mạng thì bỏ qua
+          if (current.id) markRead(current.id).catch(() => undefined);
           hide();
           if (current.link) router.push(current.link);
         }}

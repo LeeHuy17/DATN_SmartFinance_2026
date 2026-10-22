@@ -1,25 +1,31 @@
 import { useCallback, useState } from 'react';
-import { Platform, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 import { ScreenHeader } from '@/components/ScreenHeader';
-import {
-  getNotificationSettings,
-  setNotificationSetting,
-  unreadCount,
-  type NotificationSettings,
-} from '@/features/notifications/notificationsStore';
+import { showToast } from '@/components/Toast';
+import { getSettings, getUnreadCount, updateSettings } from '@/features/notifications/notificationsApi';
+import type { NotificationSettings } from '@/features/notifications/notificationsStore';
 import { colors, radius, spacing } from '@/theme';
 
-type Option = { key: keyof NotificationSettings; icon: keyof typeof Ionicons.glyphMap; title: string; text: string };
+type Option = {
+  key: keyof NotificationSettings;
+  icon: keyof typeof Ionicons.glyphMap;
+  title: string;
+  text: string;
+  /** Chưa có trên bản này: hiện công tắc nhưng không cho bật / tắt */
+  unavailable?: boolean;
+};
 
+// Thông báo đẩy cần bản cài đặt riêng của app (development / production build), Expo Go không nhận được
 const PUSH: Option = {
   key: 'push',
   icon: 'notifications-outline',
-  title: 'Cho phép thông báo đẩy',
-  text: 'Nhận thông báo ngay cả khi không mở ứng dụng',
+  title: 'Thông báo đẩy',
+  text: 'Chưa hỗ trợ trên bản này. Thông báo vẫn hiện bằng banner khi đang mở app và trong Hộp thư.',
+  unavailable: true,
 };
 const IN_APP: Option[] = [
   {
@@ -30,11 +36,16 @@ const IN_APP: Option[] = [
   },
 ];
 const TYPES: Option[] = [
-  { key: 'budget', icon: 'warning-outline', title: 'Cảnh báo vượt ngân sách', text: 'Khi chi tiêu đạt 80% và 100% ngân sách' },
-  { key: 'ocr', icon: 'scan-outline', title: 'Kết quả quét hóa đơn', text: 'Khi hóa đơn đọc xong, chờ bạn xác nhận' },
-  { key: 'reminder', icon: 'wallet-outline', title: 'Nhắc ghi chép hằng ngày', text: 'Nhắc lúc 20:00 nếu chưa có giao dịch' },
-  { key: 'advice', icon: 'sparkles-outline', title: 'Lời khuyên từ trợ lý AI', text: 'Nhận xét mới về thói quen chi tiêu' },
-  { key: 'email', icon: 'mail-outline', title: 'Bản tin qua email', text: 'Tổng kết chi tiêu hằng tháng' },
+  {
+    key: 'budget',
+    icon: 'warning-outline',
+    title: 'Cảnh báo ngân sách',
+    text: 'Khi chi tiêu chạm ngưỡng cảnh báo và khi vượt hạn mức (mỗi mốc báo một lần mỗi tháng)',
+  },
+  { key: 'reminder', icon: 'wallet-outline', title: 'Nhắc ghi chép hằng ngày', text: 'Nhắc sau 20:00 nếu hôm đó chưa ghi giao dịch nào' },
+  { key: 'email', icon: 'mail-outline', title: 'Bản tin qua email', text: 'Tổng kết thu chi tháng trước, gửi sáng ngày 1 tới email đăng nhập' },
+  { key: 'ocr', icon: 'scan-outline', title: 'Kết quả quét hóa đơn', text: 'Khi hóa đơn đọc xong, chờ bạn xác nhận · Sắp có' },
+  { key: 'advice', icon: 'sparkles-outline', title: 'Lời khuyên từ trợ lý AI', text: 'Nhận xét mới về thói quen chi tiêu · Sắp có' },
 ];
 
 // react-native-web tô núm công tắc theo activeThumbColor (prop riêng của web)
@@ -42,19 +53,54 @@ const webSwitchProps = Platform.OS === 'web' ? { activeThumbColor: colors.onPrim
 
 export default function NotificationSettingsScreen() {
   const router = useRouter();
-  const [settings, setSettings] = useState(getNotificationSettings);
-  const [unread, setUnread] = useState(unreadCount);
+  const [settings, setSettings] = useState<NotificationSettings | null>(null);
+  const [error, setError] = useState(false);
+  const [unread, setUnread] = useState(0);
 
-  useFocusEffect(useCallback(() => setUnread(unreadCount()), []));
+  const load = useCallback(() => {
+    setError(false);
+    getSettings()
+      .then(setSettings)
+      .catch(() => setError(true));
+    getUnreadCount()
+      .then(setUnread)
+      .catch(() => undefined);
+  }, []);
 
-  const toggle = (key: keyof NotificationSettings, value: boolean) => {
-    setNotificationSetting(key, value);
-    setSettings(getNotificationSettings());
+  useFocusEffect(load);
+
+  // Đổi ngay trên màn hình, lưu lên server; lỗi thì trả lại như cũ
+  const toggle = async (key: keyof NotificationSettings, value: boolean) => {
+    if (!settings) return;
+    const previous = settings;
+    setSettings({ ...settings, [key]: value });
+    try {
+      setSettings(await updateSettings({ [key]: value }));
+    } catch {
+      setSettings(previous);
+      showToast('Không lưu được cài đặt. Vui lòng thử lại.', 'alert-circle');
+    }
   };
 
-  const renderRows = (options: Option[], dimmed = false) =>
+  if (!settings) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <ScreenHeader title="Thông báo" fallbackHref="/profile" />
+        {error ? (
+          <Pressable style={styles.errorBox} onPress={load} accessibilityRole="button">
+            <Text style={styles.text}>Không tải được cài đặt thông báo.</Text>
+            <Text style={styles.retry}>Thử lại</Text>
+          </Pressable>
+        ) : (
+          <ActivityIndicator style={styles.loading} color={colors.primary} />
+        )}
+      </SafeAreaView>
+    );
+  }
+
+  const renderRows = (options: Option[]) =>
     options.map((o, i) => (
-      <View key={o.key} style={[styles.row, i < options.length - 1 && styles.divider, dimmed && styles.dimmed]}>
+      <View key={o.key} style={[styles.row, i < options.length - 1 && styles.divider, o.unavailable && styles.dimmed]}>
         <View style={styles.icon}>
           <Ionicons name={o.icon} size={18} color={colors.primary} />
         </View>
@@ -63,8 +109,9 @@ export default function NotificationSettingsScreen() {
           <Text style={styles.text}>{o.text}</Text>
         </View>
         <Switch
-          value={settings[o.key]}
+          value={o.unavailable ? false : settings[o.key]}
           onValueChange={(v) => toggle(o.key, v)}
+          disabled={o.unavailable}
           trackColor={{ false: colors.border, true: colors.primary }}
           thumbColor={colors.onPrimary}
           {...webSwitchProps}
@@ -79,21 +126,11 @@ export default function NotificationSettingsScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.card}>{renderRows([PUSH])}</View>
 
-        {!settings.push && (
-          <View style={styles.warning} accessibilityRole="alert">
-            <Ionicons name="warning-outline" size={16} color={colors.warm} />
-            <Text style={styles.warningText}>
-              Thông báo đẩy đang tắt. Bạn vẫn nhận banner khi đang mở ứng dụng và xem được trong Hộp thư.
-            </Text>
-          </View>
-        )}
-
         <Text style={styles.sectionTitle}>TRONG ỨNG DỤNG</Text>
         <View style={styles.card}>{renderRows(IN_APP)}</View>
 
         <Text style={styles.sectionTitle}>LOẠI THÔNG BÁO</Text>
-        {/* Thông báo đẩy tắt: các loại chỉ còn hiện trong app nên làm mờ để gợi ý */}
-        <View style={styles.card}>{renderRows(TYPES, !settings.push)}</View>
+        <View style={styles.card}>{renderRows(TYPES)}</View>
 
         <Pressable
           style={({ pressed }) => [styles.card, styles.inbox, pressed && styles.pressed]}
@@ -116,7 +153,7 @@ export default function NotificationSettingsScreen() {
         <View style={styles.note}>
           <Ionicons name="shield-checkmark-outline" size={16} color={colors.primary} />
           <Text style={styles.noteText}>
-            Thông báo bảo mật (đổi mật khẩu, đăng nhập lạ) luôn được gửi để bảo vệ tài khoản.
+            Thông báo bảo mật (đổi hoặc đặt lại mật khẩu) luôn được gửi để bảo vệ tài khoản.
           </Text>
         </View>
       </ScrollView>
@@ -125,6 +162,9 @@ export default function NotificationSettingsScreen() {
 }
 
 const styles = StyleSheet.create({
+  loading: { marginTop: spacing.xl },
+  errorBox: { marginTop: spacing.xl, alignItems: 'center', gap: spacing.xs },
+  retry: { fontSize: 14, fontWeight: '700', color: colors.primary },
   safe: { flex: 1, backgroundColor: colors.screen },
   content: { paddingHorizontal: spacing.md, paddingTop: spacing.sm, paddingBottom: spacing.xl },
   card: { paddingHorizontal: spacing.md - 4, borderRadius: radius.lg, backgroundColor: colors.background },
@@ -152,15 +192,6 @@ const styles = StyleSheet.create({
   texts: { flex: 1 },
   title: { fontSize: 15, fontWeight: '600', color: colors.text },
   text: { marginTop: 2, fontSize: 12, lineHeight: 17, color: colors.textMuted },
-  warning: {
-    marginTop: spacing.md - 4,
-    flexDirection: 'row',
-    gap: spacing.sm,
-    padding: spacing.md - 4,
-    borderRadius: radius.md,
-    backgroundColor: colors.warmSoft,
-  },
-  warningText: { flex: 1, fontSize: 13, lineHeight: 19, color: colors.warm },
   inbox: { marginTop: spacing.md + 4, flexDirection: 'row', alignItems: 'center', gap: spacing.md - 4, paddingVertical: 12 },
   inboxText: { flex: 1, fontSize: 15, fontWeight: '700', color: colors.text },
   badge: {
