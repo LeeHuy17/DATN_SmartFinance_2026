@@ -32,12 +32,22 @@ class RegisterSerializer(serializers.ModelSerializer):
 
 
 class UserSerializer(serializers.ModelSerializer):
+    avatar_url = serializers.SerializerMethodField()
+
     class Meta:
         model = User
         fields = (
             "id", "email", "full_name", "phone", "birth_date", "gender", "currency", "date_joined",
+            "avatar_url",
         )
         read_only_fields = ("id", "email", "date_joined")
+
+    def get_avatar_url(self, obj):
+        if not obj.avatar:
+            return None
+        request = self.context.get("request")
+        url = obj.avatar.url
+        return request.build_absolute_uri(url) if request else url
 
     def validate_birth_date(self, value):
         if value and value > timezone.localdate():
