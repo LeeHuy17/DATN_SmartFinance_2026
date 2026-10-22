@@ -12,6 +12,7 @@ import { Avatar } from '@/features/profile/components/Avatar';
 import { AvatarSheet } from '@/features/profile/components/AvatarSheet';
 import { BirthDateSheet } from '@/features/profile/components/BirthDateSheet';
 import {
+  avatarErrorMessage,
   GENDER_OPTIONS,
   getProfile,
   getProfileNow,
@@ -19,7 +20,7 @@ import {
   type Profile,
   type ProfileInput,
 } from '@/features/profile/profileStore';
-import { getFieldErrors } from '@/lib/api/client';
+import { ApiError, getFieldErrors } from '@/lib/api/client';
 import { confirm } from '@/lib/confirm';
 import { colors, radius, spacing } from '@/theme';
 
@@ -95,7 +96,12 @@ export default function PersonalInfoScreen() {
       const f = getFieldErrors(e);
       setErrors({ fullName: f.full_name, phone: f.phone });
       if (!f.full_name && !f.phone) {
-        showToast(f.birth_date ?? f.gender ?? f.form ?? 'Không lưu được. Vui lòng thử lại.', 'alert-circle');
+        const tooMany = e instanceof ApiError && e.status === 429;
+        showToast(
+          f.avatar ?? f.birth_date ?? f.gender ?? f.form ??
+            (tooMany ? avatarErrorMessage(e) : 'Không lưu được. Vui lòng thử lại.'),
+          'alert-circle',
+        );
       }
     } finally {
       setSaving(false);

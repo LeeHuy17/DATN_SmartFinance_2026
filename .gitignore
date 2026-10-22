@@ -15,3 +15,6 @@ venv/
 __pycache__/
 *.pyc
 staticfiles/
+
+# Ảnh người dùng tải lên
+media/

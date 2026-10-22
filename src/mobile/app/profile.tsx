@@ -10,7 +10,7 @@ import { useAuth } from '@/features/auth/AuthProvider';
 import { getUnreadCount } from '@/features/notifications/notificationsApi';
 import { Avatar } from '@/features/profile/components/Avatar';
 import { AvatarSheet } from '@/features/profile/components/AvatarSheet';
-import { getProfile, getProfileNow, updateProfile, type Profile } from '@/features/profile/profileStore';
+import { avatarErrorMessage, getProfile, getProfileNow, updateProfile, type Profile } from '@/features/profile/profileStore';
 import { colors, radius, spacing } from '@/theme';
 
 const APP_VERSION = 'v1.0.0';
@@ -42,8 +42,8 @@ export default function ProfileScreen() {
     try {
       setProfile(await updateProfile({ avatarUri: uri }));
       showToast(uri ? 'Đã cập nhật ảnh đại diện' : 'Đã xóa ảnh đại diện');
-    } catch {
-      showToast('Không lưu được ảnh. Vui lòng thử lại.', 'alert-circle');
+    } catch (e) {
+      showToast(avatarErrorMessage(e), 'alert-circle');
     }
   };
 

@@ -86,6 +86,7 @@ REST_FRAMEWORK = {
     # Chỉ áp dụng cho view có throttle_scope tương ứng (ScopedRateThrottle)
     "DEFAULT_THROTTLE_RATES": {
         "advisor": "20/hour",
+        "avatar_upload": "20/hour",
     },
 }
 
@@ -111,6 +112,9 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 

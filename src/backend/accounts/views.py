@@ -3,8 +3,12 @@ import logging
 from django.contrib.auth import get_user_model
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError
+from django.core.files.storage import default_storage
 from rest_framework import generics, permissions, status
+from rest_framework.exceptions import ValidationError as DRFValidationError
+from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -13,6 +17,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 from notifications.services import notify_password_changed
 
 from . import password_reset
+from .avatar import InvalidImage, process_avatar
 from .serializers import (
     ChangePasswordSerializer, LoginSerializer, LogoutSerializer, PasswordResetConfirmSerializer,
     PasswordResetRequestSerializer, PasswordResetVerifySerializer,
@@ -37,6 +42,38 @@ class MeView(generics.RetrieveUpdateAPIView):
 
     def get_object(self):
         return self.request.user
+
+
+class AvatarView(APIView):
+    parser_classes = (MultiPartParser, FormParser)
+    throttle_classes = (ScopedRateThrottle,)
+    throttle_scope = "avatar_upload"
+
+    def post(self, request):
+        upload = request.FILES.get("avatar")
+        if not upload:
+            raise DRFValidationError({"avatar": "Chưa chọn ảnh."})
+        try:
+            content = process_avatar(upload)
+        except InvalidImage as e:
+            raise DRFValidationError({"avatar": str(e)})
+
+        user = request.user
+        old = user.avatar.name if user.avatar else None
+        user.avatar.save("avatar.jpg", content, save=False)  # tên thật do avatar_path sinh
+        user.save(update_fields=["avatar"])
+        if old:
+            default_storage.delete(old)
+        return Response(UserSerializer(user, context={"request": request}).data)
+
+    def delete(self, request):
+        user = request.user
+        if user.avatar:
+            old = user.avatar.name
+            user.avatar = None
+            user.save(update_fields=["avatar"])
+            default_storage.delete(old)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class ChangePasswordView(APIView):

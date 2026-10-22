@@ -1,8 +1,15 @@
+import uuid
+
 from django.contrib.auth.models import (
     AbstractBaseUser, BaseUserManager, PermissionsMixin,
 )
 from django.db import models
 from django.utils import timezone
+
+
+def avatar_path(instance, filename):
+    # Bỏ qua tên gốc, dùng tên ngẫu nhiên
+    return f"avatars/{instance.pk}/{uuid.uuid4().hex}.jpg"
 
 
 class UserManager(BaseUserManager):
@@ -40,6 +47,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     birth_date = models.DateField(null=True, blank=True)
     gender = models.CharField(max_length=6, choices=Gender.choices, blank=True)
     currency = models.CharField(max_length=3, default="VND")
+    avatar = models.ImageField(upload_to=avatar_path, null=True, blank=True)
 
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)

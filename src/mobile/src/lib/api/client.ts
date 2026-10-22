@@ -43,6 +43,9 @@ export const setOnSessionExpired = (handler: (() => void) | null) => {
   onSessionExpired = handler;
 };
 
+const isFormData = (body: unknown): body is FormData =>
+  typeof FormData !== 'undefined' && body instanceof FormData;
+
 async function request(path: string, init: RequestInit, token: string | null, timeoutMs?: number) {
   // Có timeoutMs thì tự hủy request khi quá hạn (fetch mặc định không có thời gian chờ)
   const controller = timeoutMs ? new AbortController() : null;
@@ -52,7 +55,8 @@ async function request(path: string, init: RequestInit, token: string | null, ti
       ...init,
       ...(controller ? { signal: controller.signal } : {}),
       headers: {
-        'Content-Type': 'application/json',
+        // FormData: để hệ thống tự thêm Content-Type kèm boundary
+        ...(isFormData(init.body) ? {} : { 'Content-Type': 'application/json' }),
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...init.headers,
       },

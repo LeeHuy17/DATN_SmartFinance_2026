@@ -26,6 +26,7 @@ services:
       - "8000:8000"
     volumes:
       - static_data:/app/staticfiles
+      - media_data:/app/media
 
   # Việc thông báo theo lịch: nhắc ghi chép sau 20:00, email tổng kết tháng, dọn thông báo cũ.
   # Chạy mỗi 10 phút; lệnh tự chống gửi trùng nên chạy lặp lại không sao.
@@ -45,3 +46,4 @@ services:
 volumes:
   postgres_data:
   static_data:
+  media_data:
