@@ -20,12 +20,6 @@ export const getToken = () => getItem(TOKEN_KEY);
 export const setToken = (token: string) => setItem(TOKEN_KEY, token);
 export const clearToken = () => removeItem(TOKEN_KEY);
 
-// Ảnh đại diện chỉ lưu trên máy (server chưa có chỗ chứa ảnh), tách theo từng tài khoản
-const avatarKey = (userId: number) => `avatar_uri_${userId}`;
-export const getAvatarUri = (userId: number) => getItem(avatarKey(userId));
-export const setAvatarUri = (userId: number, uri: string | null) =>
-  uri ? setItem(avatarKey(userId), uri) : removeItem(avatarKey(userId));
-
 export const getRefreshToken = () => getItem(REFRESH_TOKEN_KEY);
 export const setRefreshToken = (token: string) => setItem(REFRESH_TOKEN_KEY, token);
 export const clearRefreshToken = () => removeItem(REFRESH_TOKEN_KEY);
