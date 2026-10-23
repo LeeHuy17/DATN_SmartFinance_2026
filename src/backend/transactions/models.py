@@ -35,6 +35,11 @@ class Transaction(models.Model):
     # Nhập tay hay tạo từ hóa đơn quét được (app hiện nhãn khác nhau)
     source = models.CharField(max_length=6, choices=Source.choices, default=Source.MANUAL)
     date = models.DateField(default=timezone.localdate)
+    # Hóa đơn đã quét gắn với giao dịch này; mỗi hóa đơn chỉ dùng cho một giao dịch
+    receipt = models.OneToOneField(
+        "receipts.Receipt", null=True, blank=True,
+        on_delete=models.SET_NULL, related_name="transaction",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
