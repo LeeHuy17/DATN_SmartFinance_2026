@@ -18,7 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { ConfirmReceipt } from '@/features/ocr/components/ConfirmReceipt';
-import { OCR_STEPS, recognizeReceipt, type OcrFields, type OcrStep } from '@/features/ocr/ocrApi';
+import { discardReceipt, OCR_STEPS, recognizeReceipt, type OcrFields, type OcrStep } from '@/features/ocr/ocrApi';
 import { getPendingReceipt, setOcrDraft } from '@/features/ocr/pendingReceipt';
 import { formatFullDate, formatVnd } from '@/lib/format';
 import { colors, radius, spacing } from '@/theme';
@@ -27,7 +27,7 @@ type Phase =
   | { kind: 'reading'; step: OcrStep }
   /** Đọc được: chờ người dùng kiểm tra và xác nhận (UI-03) */
   | { kind: 'confirm'; fields: OcrFields & { total: number } }
-  | { kind: 'failed'; reason: string; fields: OcrFields }
+  | { kind: 'failed'; reason: string; fields: OcrFields; retryable?: boolean }
   | { kind: 'no-image' };
 
 /** Đọc hóa đơn vừa chụp: tiến trình → xác nhận kết quả (hoặc báo lỗi nếu không đọc được) */
@@ -39,30 +39,43 @@ export default function ReceiptPreviewScreen() {
   );
   const signal = useRef({ cancelled: false });
 
-  useEffect(() => {
+  const read = () => {
     if (!receipt) return;
     const s = signal.current;
-    recognizeReceipt(receipt.uri, (step) => setPhase({ kind: 'reading', step }), s)
+    setPhase({ kind: 'reading', step: 'enhance' });
+    recognizeReceipt(receipt.uri, (step) => !s.cancelled && setPhase({ kind: 'reading', step }), s)
       .then((result) => {
         if (s.cancelled) return;
         if (result.status === 'ok') {
           setPhase({ kind: 'confirm', fields: result.fields });
         } else {
-          setPhase({ kind: 'failed', reason: result.reason, fields: result.fields });
+          setPhase({ kind: 'failed', reason: result.reason, fields: result.fields, retryable: result.retryable });
         }
       })
       .catch(() => {
         if (!s.cancelled) setPhase({ kind: 'failed', reason: 'Không đọc được ảnh. Vui lòng chụp lại.', fields: {} });
       });
+  };
+
+  useEffect(() => {
+    read();
     return () => {
-      s.cancelled = true;
+      signal.current.cancelled = true;
     };
     // Chỉ đọc một lần cho mỗi lần mở màn
   }, []);
 
+  /** Bỏ ảnh hóa đơn đã lưu trên server khi người dùng không dùng nữa */
+  const discard = () => {
+    if ((phase.kind === 'confirm' || phase.kind === 'failed') && phase.fields.receiptId) {
+      void discardReceipt(phase.fields.receiptId);
+    }
+  };
+
   /** Quay về màn quét để chụp lại (hoặc hủy khi đang đọc) */
   const backToScanner = () => {
     signal.current.cancelled = true;
+    discard();
     if (router.canGoBack()) router.back();
     else router.replace('/receipt/scan');
   };
@@ -81,7 +94,7 @@ export default function ReceiptPreviewScreen() {
           <ScrollView contentContainerStyle={styles.content}>
             <ScanningImage uri={receipt?.uri} />
             <Text style={styles.heading}>Đang đọc hóa đơn...</Text>
-            <Text style={styles.sub}>Thường mất dưới 3 giây.</Text>
+            <Text style={styles.sub}>Có thể mất vài giây, vui lòng chờ.</Text>
 
             <View style={styles.card} accessibilityRole="progressbar" accessibilityLabel="Tiến trình đọc hóa đơn">
               {OCR_STEPS.map((s, i) => {
@@ -109,7 +122,10 @@ export default function ReceiptPreviewScreen() {
           fields={phase.fields}
           onRetake={backToScanner}
           // Hủy bỏ: không lưu gì, đóng cả luồng quét
-          onCancel={() => router.dismissTo('/')}
+          onCancel={() => {
+            discard();
+            router.dismissTo('/');
+          }}
           // Lưu xong về Tổng quan để thấy giao dịch vừa thêm
           onSaved={() => router.dismissTo('/')}
         />
@@ -156,8 +172,12 @@ export default function ReceiptPreviewScreen() {
             </View>
           </ScrollView>
           <View style={[styles.footer, styles.footerGap]}>
-            <PrimaryButton title="Chụp lại" onPress={backToScanner} />
-            <SecondaryButton title="Nhập tay với dữ liệu đã đọc" onPress={() => manualWithReadData(phase.fields)} />
+            {phase.retryable ? (
+              <PrimaryButton title="Thử lại" onPress={read} />
+            ) : (
+              <PrimaryButton title="Chụp lại" onPress={backToScanner} />
+            )}
+            <SecondaryButton title={phase.fields.receiptId ? 'Nhập tay với dữ liệu đã đọc' : 'Nhập tay'} onPress={() => manualWithReadData(phase.fields)} />
           </View>
         </>
       )}

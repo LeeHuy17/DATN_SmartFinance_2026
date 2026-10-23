@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Image, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { softColor } from '@/features/transactions/categories';
@@ -74,6 +74,15 @@ export function TransactionQuickView({ transaction, onClose, onEdit, onDelete }:
               </View>
             </View>
 
+            {t.receiptImageUrl && (
+              <Image
+                source={{ uri: t.receiptImageUrl }}
+                style={styles.receipt}
+                resizeMode="cover"
+                accessibilityLabel="Ảnh hóa đơn"
+              />
+            )}
+
             <View style={styles.actions}>
               <Pressable
                 style={[styles.button, styles.editButton]}
@@ -117,6 +126,7 @@ function Row({ label, value }: { label: string; value: string }) {
 }
 
 const styles = StyleSheet.create({
+  receipt: { marginTop: spacing.md, height: 140, borderRadius: radius.md, backgroundColor: colors.disabled },
   overlay: {
     flex: 1,
     backgroundColor: colors.overlay,
