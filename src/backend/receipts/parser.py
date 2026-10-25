@@ -69,8 +69,14 @@ def parse_amount(token):
     return None
 
 
-def amounts_in(line):
+SPACED_THOUSANDS_RE = re.compile(r"(?<![\d.,])(\d{1,3}) (\d{3})(?![\d])")
+
+
+def amounts_in(line, loose=False):
+    """loose: coi '95 844' (OCR đọc dấu chấm thành khoảng trắng) là 95.844. Chỉ dùng ở dòng tổng tiền."""
     text = fold(_fix_ocr_digits(line))
+    if loose:
+        text = SPACED_THOUSANDS_RE.sub(r"\1.\2", text)
     for rx, _ in DATE_PATTERNS:
         text = rx.sub(" ", text)  # bỏ ngày để '2026' không bị tính là tiền
     text = TIME_RE.sub(" ", text)
@@ -91,14 +97,16 @@ PAY_KEYS = ("thanh toan", "chuyen khoan", "quet the", "the tin dung",
 EXCLUDE = ("tam tinh", "subtotal", "sub total", "tien thua", "tra lai", "khach dua",
            "tien khach", "chua vat", "truoc thue", "tien thue", "thue gtgt",
            "giam gia", "chiet khau", "diem tich", "tich luy",
-           "tong tien hang", "tong so luong", "tong sl")
+           "tong tien hang", "tong so luong", "tong sl",
+           # "Total Discount" không phải tổng tiền; mã giao dịch ví / QR chứa dãy số dài
+           "discount", "txn", "qr code", "ma giao dich")
 
 
 def _value_at(lines, i):
-    values = amounts_in(lines[i])
+    values = amounts_in(lines[i], loose=True)
     # Nhãn và số tiền đôi khi bị OCR tách thành hai dòng
     if not values and i + 1 < len(lines) and not any(k in fold(lines[i + 1]) for k in EXCLUDE):
-        values = amounts_in(lines[i + 1])[:1]
+        values = amounts_in(lines[i + 1], loose=True)[:1]
     return values[-1] if values else None
 
 

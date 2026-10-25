@@ -66,6 +66,23 @@ class ParserTests(SimpleTestCase):
         self.assertEqual(total, Decimal("899000"))
         self.assertLess(conf, 0.7)  # vẫn tô vàng để người dùng kiểm tra
 
+    def test_total_discount_line_is_not_a_total(self):
+        # Hóa đơn siêu thị rách/nhăn: "Total Discount" từng bị coi là dòng tổng và lấy nhầm "95"
+        # (số đầu của "VND 95 844" ở dòng sau) làm tổng tiền
+        lines = ["TÔNG CONG VND 95.844", "56 Iuong 10", "Total Discount", "VND 95 844",
+                 "VNPaYR Code Txn ID: SPOS29150895", "trị chura thuê 71.760 5.740"]
+        total, conf = extract_total(lines)
+        self.assertEqual(total, Decimal("95844"))
+        self.assertGreaterEqual(conf, 0.7)
+
+    def test_transaction_id_is_not_an_amount(self):
+        total, _ = extract_total(["Tổng cộng 95.944", "VNPay QR Code Txn ID: SPOS29150895"])
+        self.assertEqual(total, Decimal("95944"))
+
+    def test_spaced_thousands_on_total_line(self):
+        total, _ = extract_total(["TỔNG CỘNG VND 95 944"])
+        self.assertEqual(total, Decimal("95944"))
+
     def test_fallback_without_keywords_is_low_confidence(self):
         total, conf = extract_total(["Quán A", "Phở 45.000", "Trà đá 5.000", "50.000"])
         self.assertEqual(total, Decimal("50000"))
