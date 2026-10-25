@@ -89,7 +89,12 @@ export default function ScanReceiptScreen() {
   const pickFromLibrary = async () => {
     setError(null);
     try {
-      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8 });
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        quality: 0.8,
+        // iPhone lưu ảnh dạng HEIC, server không đọc được: bắt iOS đổi sang JPEG
+        preferredAssetRepresentationMode: ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
+      });
       if (!result.canceled && result.assets[0]) openPreview(result.assets[0].uri, 'gallery');
     } catch {
       setError('Không mở được thư viện ảnh.');

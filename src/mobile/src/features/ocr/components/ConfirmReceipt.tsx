@@ -237,7 +237,14 @@ export function ConfirmReceipt({ uri, fields, onRetake, onCancel, onSaved }: Pro
         <Pressable style={styles.cancel} onPress={onCancel} accessibilityRole="button">
           <Text style={styles.cancelText}>Hủy bỏ</Text>
         </Pressable>
-        <PrimaryButton title="Xác nhận" onPress={handleConfirm} loading={saving} style={styles.confirm} />
+        {/* Chưa có danh mục (server không đoán được) thì bắt buộc tự chọn, không tự điền giúp */}
+        <PrimaryButton
+          title="Xác nhận"
+          onPress={handleConfirm}
+          loading={saving}
+          disabled={!category}
+          style={styles.confirm}
+        />
       </View>
 
       <BottomSheet visible={categorySheet} title="Chọn danh mục" onClose={() => setCategorySheet(false)}>
