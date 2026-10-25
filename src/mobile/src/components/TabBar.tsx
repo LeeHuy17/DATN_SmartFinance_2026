@@ -21,7 +21,7 @@ const ICONS: Record<string, IconName> = {
 /** Tab nổi ở giữa thanh tab: mở màn quét hóa đơn toàn màn hình thay vì chuyển tab */
 const CENTER_TAB = 'scan';
 
-export function TabBar({ state, descriptors, navigation }: TabBarProps) {
+export function TabBar({ state, descriptors, emitter, navigateToTab }: TabBarProps) {
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
@@ -34,12 +34,12 @@ export function TabBar({ state, descriptors, navigation }: TabBarProps) {
         const icon = ICONS[route.name] ?? 'ellipse-outline';
 
         const onPress = () => {
-          const event = navigation.emit({
+          const event = emitter.emit({
             type: 'tabPress',
             target: route.key,
             canPreventDefault: true,
           });
-          if (!focused && !event.defaultPrevented) navigation.navigate(route.name, route.params);
+          if (!focused && !event.defaultPrevented) navigateToTab(route.key);
         };
 
         if (route.name === CENTER_TAB) {
