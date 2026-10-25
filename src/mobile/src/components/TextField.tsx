@@ -8,6 +8,7 @@ import {
   View,
   type TextInputProps,
   type TextStyle,
+  TextInputInstance,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -26,7 +27,7 @@ type Props = TextInputProps & {
   labelAccessory?: ReactNode;
 };
 
-export const TextField = forwardRef<TextInput, Props>(function TextField(
+export const TextField = forwardRef<TextInputInstance, Props>(function TextField(
   { label, error, hint, passwordToggle, labelAccessory, secureTextEntry, style, onFocus, onBlur, ...inputProps },
   ref,
 ) {

@@ -225,10 +225,10 @@ export default function TransactionHistoryScreen() {
               {count} kết quả cho “{debouncedQuery.trim()}”
               {searchTotal !== null && ` · ${formatTotal(searchTotal)}`}
             </Text>
-          ) : null
+          ) : undefined
         }
         ListFooterComponent={
-          loadingMore ? <ActivityIndicator style={styles.loadingMore} color={colors.primary} /> : null
+          loadingMore ? <ActivityIndicator style={styles.loadingMore} color={colors.primary} /> : undefined
         }
         renderItem={({ item: g }) => (
           <Group title={dayLabel(g.date)} total={g.total}>

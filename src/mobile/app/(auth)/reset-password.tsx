@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { StyleSheet, TextInput } from 'react-native';
+import { StyleSheet, TextInput, TextInputInstance } from 'react-native';
 import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
 
 import { FieldError } from '@/components/FieldError';
@@ -22,7 +22,7 @@ export default function ResetPasswordScreen() {
   const [confirm, setConfirm] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const confirmRef = useRef<TextInput>(null);
+  const confirmRef = useRef<TextInputInstance>(null);
 
   // Chỉ vào được sau khi đã xác thực mã ở bước 2
   if (!token) return <Redirect href="/forgot-password" />;

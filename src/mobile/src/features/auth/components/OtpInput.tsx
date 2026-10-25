@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, Text, TextInput, View, TextInputInstance } from 'react-native';
 
 import { colors, radius, spacing } from '@/theme';
 
@@ -16,7 +16,7 @@ type Props = {
  * nên dán mã hoặc tự điền mã từ SMS vẫn hoạt động.
  */
 export function OtpInput({ value, onChange, length, error = false, autoFocus }: Props) {
-  const inputRef = useRef<TextInput>(null);
+  const inputRef = useRef<TextInputInstance>(null);
   const [focused, setFocused] = useState(false);
   const activeIndex = focused ? Math.min(value.length, length - 1) : -1;
 
