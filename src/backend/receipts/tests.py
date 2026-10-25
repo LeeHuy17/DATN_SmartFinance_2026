@@ -23,7 +23,7 @@ from .ocr import OCRUnavailable
 User = get_user_model()
 SCAN = "/api/receipts/scan/"
 PWD = "StrongPass123!"
-LINES = [{"text": t, "conf": 0.9, "y": i * 20} for i, t in enumerate(
+LINES = [{"text": t, "conf": 0.9, "y": i * 20, "x0": 100, "x1": 300, "cx": 200} for i, t in enumerate(
     ["HIGHLANDS COFFEE", "Ngày: 05/10/2026 14:32", "Cà phê sữa 58.000", "Tổng cộng 89.640"])]
 
 
@@ -69,6 +69,24 @@ class ReceiptTests(APITestCase):
         self.assertEqual(res.data["suggested_category_name"], "Ăn uống")
         self.assertEqual(res.data["needs_review"], [])
         self.assertTrue(os.path.exists(Receipt.objects.get().image.path))
+
+    def _lines(self, texts):
+        return [{"text": t, "conf": 0.9, "y": i * 20, "x0": 100, "x1": 300, "cx": 200}
+                for i, t in enumerate(texts)]
+
+    def test_category_not_guessed_from_address_line(self):
+        # "Thành phố" (bỏ dấu: "thanh pho") không được khớp từ khóa "phở" của Ăn uống
+        res = self._scan(self._lines(["CỬA HÀNG ABC", "112 Lê Duẩn - Thành phố Đà Nẵng",
+                                      "Tổng cộng 899.000", "Đã thanh toán 899.000"]))
+        self.assertIsNone(res.data["suggested_category"])
+        self.assertIn("category", res.data["needs_review"])
+
+    def test_retail_receipt_suggests_shopping(self):
+        res = self._scan(self._lines(["HMK EYEWEAR", "112 Lê Duẩn - Thành phố Đà Nẵng",
+                                      "20/10/2026 21:31", "Tổng cộng 899.000",
+                                      "Đã thanh toán 899.000"]))
+        self.assertEqual(res.data["suggested_category_name"], "Mua sắm")
+        self.assertEqual(res.data["needs_review"], [])
 
     def test_scan_without_total_needs_review(self):
         res = self._scan([{"text": "Xin cảm ơn", "conf": 0.9, "y": 0}])

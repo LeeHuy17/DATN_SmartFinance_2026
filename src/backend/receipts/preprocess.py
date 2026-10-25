@@ -1,9 +1,13 @@
+import logging
+
 import cv2
 import numpy as np
 from django.conf import settings
 from PIL import Image, ImageOps, UnidentifiedImageError
 
 from accounts.avatar import InvalidImage
+
+logger = logging.getLogger(__name__)
 
 MAX_BYTES = 8 * 1024 * 1024
 MAX_PIXELS = 40_000_000
@@ -22,7 +26,11 @@ def load_image(upload):
         if img.width * img.height > MAX_PIXELS:
             raise InvalidImage("Kích thước ảnh quá lớn.")
         img.load()
-    except (UnidentifiedImageError, OSError, Image.DecompressionBombError):
+    except (UnidentifiedImageError, OSError, Image.DecompressionBombError) as e:
+        # Ghi lại lý do thật và vài byte đầu (dấu hiệu định dạng: ff d8 = JPEG, 89 50 = PNG, "ftyp" = HEIC)
+        upload.seek(0)
+        logger.warning("Không đọc được ảnh hóa đơn: %r, %d byte, đầu tệp=%s, content_type=%s",
+                       e, upload.size, upload.read(16).hex(), getattr(upload, "content_type", None))
         raise InvalidImage("Tệp không phải ảnh hợp lệ.")
     return ImageOps.exif_transpose(img).convert("RGB")  # xoay đúng chiều điện thoại
 

@@ -46,10 +46,25 @@ class ParserTests(SimpleTestCase):
         total, _ = extract_total(["Tổng cộng", "89.640"])
         self.assertEqual(total, Decimal("89640"))
 
-    def test_two_different_totals_pick_larger_with_low_confidence(self):
+    def test_total_and_payment_disagree_is_low_confidence(self):
+        # Dòng "tổng" là gốc; thanh toán lệch thì không đủ tin để đổi, nên hạ độ tin cậy
         total, conf = extract_total(["Tổng cộng 100.000", "Thanh toán 110.000"])
-        self.assertEqual(total, Decimal("110000"))
+        self.assertEqual(total, Decimal("100000"))
         self.assertLess(conf, 0.7)
+
+    def test_goods_total_is_not_the_amount_due(self):
+        # Hóa đơn HMK Eyewear: "Tổng tiền hàng" lệch "Tổng cộng", dòng thanh toán xác nhận Tổng cộng
+        lines = ["Tổng tiền hàng: 899,100", "Chiết khấu: 0", "VAT: 71,928", "Tổng cộng: 899,000",
+                 "Đã thanh toán: 899,000", "Chuyển khoản: 899,000", "Còn lại: 0"]
+        total, conf = extract_total(lines)
+        self.assertEqual(total, Decimal("899000"))
+        self.assertGreaterEqual(conf, 0.9)
+
+    def test_misread_digit_on_total_line_is_fixed_by_payment_lines(self):
+        lines = ["Tổng cộng: 999,000", "Đã thanh toán: 899,000", "Chuyển khoản: 899,000"]
+        total, conf = extract_total(lines)
+        self.assertEqual(total, Decimal("899000"))
+        self.assertLess(conf, 0.7)  # vẫn tô vàng để người dùng kiểm tra
 
     def test_fallback_without_keywords_is_low_confidence(self):
         total, conf = extract_total(["Quán A", "Phở 45.000", "Trà đá 5.000", "50.000"])
@@ -72,6 +87,24 @@ class ParserTests(SimpleTestCase):
             extract_merchant(["Hóa đơn bán hàng", "Địa chỉ: 12 ABC", "HIGHLANDS COFFEE"]),
             "HIGHLANDS COFFEE")
         self.assertIsNone(extract_merchant(["SĐT 0901234567", "12/10/2026"]))
+
+    def test_merchant_skips_address_line(self):
+        lines = ["112 Lê Duẩn - Phường Hải Châu - Thành phố Đà Nẵng", "HÓA ĐƠN ĐẶT HÀNG"]
+        self.assertIsNone(extract_merchant(lines))
+
+    def test_merchant_ignores_off_center_background_text(self):
+        def meta(cx, conf=0.9):
+            return {"conf": conf, "x0": cx - 40, "x1": cx + 40, "cx": cx}
+
+        lines = ["Tab", "HMK EYEWEAR", "Cảm ơn quý khách", "Tổng cộng 899.000"]
+        centered = [meta(700), meta(700), meta(700), meta(700)]
+        self.assertEqual(extract_merchant(lines, centered), "Tab")  # không có tọa độ lệch thì vẫn chọn dòng đầu
+        # "Tab" nằm sát rìa trái (chữ trên bàn phím phía sau): bị phạt nên dòng giữa thắng
+        off = [meta(80), meta(700), meta(700), meta(700)]
+        self.assertEqual(extract_merchant(lines, off), "HMK EYEWEAR")
+
+    def test_merchant_low_confidence_returns_none(self):
+        self.assertIsNone(extract_merchant(["Tab"], [{"conf": 0.2, "x0": 0, "x1": 10, "cx": 5}]))
 
     def test_group_lines_joins_same_row_left_to_right(self):
         def box(t, x0, y0):

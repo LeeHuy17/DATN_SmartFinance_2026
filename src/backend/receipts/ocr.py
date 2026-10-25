@@ -46,10 +46,12 @@ def group_lines(items):
     lines = []
     for row in rows:
         row["items"].sort(key=lambda i: i["x0"])
+        x0 = min(i["x0"] for i in row["items"])
+        x1 = max(i["x1"] for i in row["items"])
         lines.append({
             "text": " ".join(i["text"] for i in row["items"]),
             "conf": sum(i["conf"] for i in row["items"]) / len(row["items"]),
-            "y": row["cy"],
+            "y": row["cy"], "x0": x0, "x1": x1, "cx": (x0 + x1) / 2,
         })
     return lines
 

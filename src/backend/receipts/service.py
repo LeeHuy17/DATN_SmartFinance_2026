@@ -7,7 +7,7 @@ from categories.models import Category
 
 from .models import Receipt
 from .ocr import read_lines
-from .parser import fold, parse_receipt
+from .parser import ADDRESS_RE, fold, parse_receipt
 from .preprocess import prepare
 
 
@@ -17,14 +17,17 @@ class NoTextFound(Exception):
 
 # Tên danh mục khớp bộ mặc định trong categories/defaults.py
 CATEGORY_RULES = {
-    "Ăn uống": ("cafe", "coffee", "ca phe", "tra sua", "nha hang", "quan an", "pho", "bun",
-                "com tam", "banh mi", "highlands", "starbucks", "kfc", "lotteria", "pizza",
-                "bia", "phuc long", "coffee house"),
+    "Ăn uống": ("cafe", "coffee", "ca phe", "tra sua", "nha hang", "quan an",
+                "pho bo", "pho ga", "quan pho", "bun bo", "bun cha", "com tam", "banh mi",
+                "highlands", "starbucks", "kfc", "lotteria", "pizza", "bia", "phuc long",
+                "coffee house"),
     "Di chuyển": ("grab", "taxi", "xanh sm", "gojek", "xang", "petrolimex", "pvoil",
                   "bai do xe", "ve xe", "gui xe"),
     "Mua sắm": ("winmart", "vinmart", "coopmart", "bach hoa xanh", "circle k", "familymart",
                 "family mart", "7-eleven", "aeon", "big c", "lotte mart", "ministop",
-                "mini stop", "sieu thi", "tap hoa", "uniqlo"),
+                "mini stop", "sieu thi", "tap hoa", "uniqlo",
+                "eyewear", "mat kinh", "kinh mat", "optic", "thoi trang", "quan ao",
+                "giay dep", "dien may"),
     "Hóa đơn & tiện ích": ("dien luc", "evn", "tien dien", "tien nuoc", "internet", "viettel",
                            "vnpt", "fpt", "mobifone", "vinaphone", "cuoc"),
     "Sức khỏe": ("nha thuoc", "pharmacity", "long chau", "benh vien", "phong kham", "thuoc"),
@@ -53,7 +56,9 @@ def scan(user, upload):
     if not lines:
         raise NoTextFound
     texts = [l["text"] for l in lines]
-    parsed = parse_receipt(texts, timezone.localdate())
+    parsed = parse_receipt(texts, timezone.localdate(), meta=lines)
+    # Bỏ dòng địa chỉ khi đoán danh mục: "Thành phố" không được khớp "phở"
+    keywords = [t for t in texts[:30] if not ADDRESS_RE.search(fold(t))]
 
     receipt = Receipt(
         user=user,
@@ -62,7 +67,7 @@ def scan(user, upload):
         total=parsed["total"],
         total_confidence=parsed["total_confidence"],
         receipt_date=parsed["date"],
-        suggested_category=suggest_category(user, texts[:30]),
+        suggested_category=suggest_category(user, keywords),
         confidence=sum(l["conf"] for l in lines) / len(lines),
     )
     receipt.image.save("receipt.jpg", ContentFile(stored), save=False)
