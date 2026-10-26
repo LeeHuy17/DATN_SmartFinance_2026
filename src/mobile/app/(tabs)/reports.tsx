@@ -24,9 +24,9 @@ const BAR_TITLE: Record<Period, string> = {
   year: 'Chi tiêu theo tháng',
 };
 
-const KIND_OPTIONS: { value: ReportKind; label: string }[] = [
-  { value: 'expense', label: 'Chi' },
-  { value: 'income', label: 'Thu' },
+const KIND_OPTIONS: { value: ReportKind; label: string; selectedColor: string; selectedBackground: string }[] = [
+  { value: 'expense', label: 'Chi', selectedColor: colors.danger, selectedBackground: colors.dangerSoft },
+  { value: 'income', label: 'Thu', selectedColor: colors.primary, selectedBackground: colors.primarySoft },
 ];
 
 /** "Tuần này · 06/10 – 12/10/2026", "Tháng 10/2026", "Năm 2026" */
