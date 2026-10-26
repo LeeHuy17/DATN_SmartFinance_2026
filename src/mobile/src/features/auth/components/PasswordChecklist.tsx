@@ -1,11 +1,13 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import type { PasswordRule } from '@/features/auth/passwordRules';
-import { colors, radius, spacing } from '@/theme';
+import { makeStyles, radius, spacing, useColors } from '@/theme';
 
 /** Checklist điều kiện mật khẩu, tick xanh ngay khi người dùng gõ */
 export function PasswordChecklist({ rules }: { rules: PasswordRule[] }) {
+  const styles = useStyles();
+  const colors = useColors();
   return (
     <View style={styles.box}>
       <Text style={styles.title}>Mật khẩu cần có</Text>
@@ -25,7 +27,7 @@ export function PasswordChecklist({ rules }: { rules: PasswordRule[] }) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   box: {
     marginTop: spacing.md,
     padding: spacing.md,
@@ -49,4 +51,4 @@ const styles = StyleSheet.create({
   checkPassed: { backgroundColor: colors.primary, borderColor: colors.primary },
   text: { flex: 1, fontSize: 14, color: colors.textMuted },
   textPassed: { fontWeight: '600', color: colors.primary },
-});
+}));

@@ -1,7 +1,7 @@
-import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import { colors, radius, spacing } from '@/theme';
+import { makeStyles, radius, spacing, useColors } from '@/theme';
 
 type Props = {
   visible: boolean;
@@ -28,6 +28,8 @@ export function ConfirmDialog({
   destructive,
   loading,
 }: Props) {
+  const styles = useStyles();
+  const colors = useColors();
   const tint = destructive ? colors.danger : colors.primary;
 
   return (
@@ -62,7 +64,7 @@ export function ConfirmDialog({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   overlay: {
     flex: 1,
     backgroundColor: colors.overlay,
@@ -91,4 +93,4 @@ const styles = StyleSheet.create({
   cancel: { borderWidth: 1, borderColor: colors.border },
   cancelText: { fontSize: 15, fontWeight: '700', color: colors.text },
   confirmText: { fontSize: 15, fontWeight: '700', color: colors.onPrimary },
-});
+}));

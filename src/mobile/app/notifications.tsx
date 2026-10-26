@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,7 +16,7 @@ import {
 } from '@/features/notifications/notificationsApi';
 import type { AppNotification } from '@/features/notifications/notificationsStore';
 import { formatDayMonth, formatRelativeDay, formatTime, formatVnd } from '@/lib/format';
-import { colors, radius, spacing } from '@/theme';
+import { makeStyles, radius, spacing, useColors } from '@/theme';
 
 type Tab = 'all' | 'unread';
 
@@ -30,6 +30,8 @@ function timeLabel(iso: string) {
 }
 
 export default function InboxScreen() {
+  const styles = useStyles();
+  const colors = useColors();
   const router = useRouter();
   const [items, setItems] = useState<AppNotification[] | null>(null);
   const [unread, setUnread] = useState(0);
@@ -127,7 +129,7 @@ export default function InboxScreen() {
         <View style={styles.card}>
           {budgetAlerts.map((b, i) => {
             const exceeded = b.status === 'exceeded';
-            const look = lookOf({ type: 'budget', tone: exceeded ? 'danger' : undefined });
+            const look = lookOf({ type: 'budget', tone: exceeded ? 'danger' : undefined }, colors);
             const title = exceeded ? `Đã vượt ngân sách ${b.name}` : `${b.name} đã dùng ${Math.round(b.percent)}% ngân sách`;
             const body = exceeded
               ? `Vượt ${formatVnd(b.remaining)} so với hạn mức ${formatVnd(b.amount)}.`
@@ -160,7 +162,7 @@ export default function InboxScreen() {
         <Text style={styles.groupTitle}>{title}</Text>
         <View style={styles.card}>
           {list.map((n, i) => {
-            const look = lookOf(n);
+            const look = lookOf(n, colors);
             return (
               <Pressable
                 key={n.id}
@@ -255,6 +257,8 @@ export default function InboxScreen() {
 }
 
 function EmptyInbox({ onSettings }: { onSettings: () => void }) {
+  const styles = useStyles();
+  const colors = useColors();
   return (
     <View style={styles.empty}>
       <View style={styles.emptyCircle}>
@@ -271,7 +275,7 @@ function EmptyInbox({ onSettings }: { onSettings: () => void }) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   loading: { marginTop: spacing.xl },
   more: { marginTop: spacing.md, paddingVertical: spacing.sm, alignItems: 'center' },
   moreText: { fontSize: 14, fontWeight: '700', color: colors.primary },
@@ -320,4 +324,4 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   emptyButtonText: { fontSize: 15, fontWeight: '700', color: colors.text },
-});
+}));

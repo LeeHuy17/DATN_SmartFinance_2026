@@ -1,8 +1,8 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { useRouter, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
-import { colors, spacing } from '@/theme';
+import { makeStyles, spacing, useColors } from '@/theme';
 
 type Props = {
   title: string;
@@ -14,6 +14,8 @@ type Props = {
 
 /** Thanh tiêu đề: nút quay lại bên trái, tiêu đề ở giữa */
 export function ScreenHeader({ title, fallbackHref = '/', onBack }: Props) {
+  const styles = useStyles();
+  const colors = useColors();
   const router = useRouter();
 
   return (
@@ -34,7 +36,7 @@ export function ScreenHeader({ title, fallbackHref = '/', onBack }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -43,4 +45,4 @@ const styles = StyleSheet.create({
   },
   title: { flex: 1, textAlign: 'center', fontSize: 18, fontWeight: '700', color: colors.text },
   spacer: { width: 26 },
-});
+}));

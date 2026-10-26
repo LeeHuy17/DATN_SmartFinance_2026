@@ -21,7 +21,7 @@ import { ConfirmReceipt } from '@/features/ocr/components/ConfirmReceipt';
 import { discardReceipt, OCR_STEPS, recognizeReceipt, type OcrFields, type OcrStep } from '@/features/ocr/ocrApi';
 import { getPendingReceipt, setOcrDraft } from '@/features/ocr/pendingReceipt';
 import { formatFullDate, formatVnd } from '@/lib/format';
-import { colors, radius, spacing } from '@/theme';
+import { makeStyles, radius, spacing, useColors } from '@/theme';
 
 type Phase =
   | { kind: 'reading'; step: OcrStep }
@@ -32,6 +32,8 @@ type Phase =
 
 /** Đọc hóa đơn vừa chụp: tiến trình → xác nhận kết quả (hoặc báo lỗi nếu không đọc được) */
 export default function ReceiptPreviewScreen() {
+  const styles = useStyles();
+  const colors = useColors();
   const router = useRouter();
   const receipt = getPendingReceipt();
   const [phase, setPhase] = useState<Phase>(
@@ -194,6 +196,7 @@ export default function ReceiptPreviewScreen() {
 
 /** Ảnh hóa đơn kèm vạch quét chạy lên xuống trong lúc đọc */
 function ScanningImage({ uri }: { uri?: string }) {
+  const styles = useStyles();
   const progress = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     const native = Platform.OS !== 'web';
@@ -217,6 +220,8 @@ function ScanningImage({ uri }: { uri?: string }) {
 }
 
 function StepRow({ label, state }: { label: string; state: 'done' | 'active' | 'pending' }) {
+  const styles = useStyles();
+  const colors = useColors();
   return (
     <View style={styles.step} accessibilityLabel={`${label}: ${state === 'done' ? 'xong' : state === 'active' ? 'đang chạy' : 'chờ'}`}>
       {state === 'done' ? (
@@ -234,6 +239,7 @@ function StepRow({ label, state }: { label: string; state: 'done' | 'active' | '
 }
 
 function Field({ label, value, missing, last }: { label: string; value: string; missing?: boolean; last?: boolean }) {
+  const styles = useStyles();
   return (
     <View style={[styles.field, !last && styles.fieldDivider]}>
       <Text style={styles.fieldLabel}>{label}</Text>
@@ -243,6 +249,7 @@ function Field({ label, value, missing, last }: { label: string; value: string; 
 }
 
 function SecondaryButton({ title, onPress }: { title: string; onPress: () => void }) {
+  const styles = useStyles();
   return (
     <Pressable style={styles.secondary} onPress={onPress} accessibilityRole="button">
       <Text style={styles.secondaryText}>{title}</Text>
@@ -252,7 +259,7 @@ function SecondaryButton({ title, onPress }: { title: string; onPress: () => voi
 
 const IMAGE_HEIGHT = 150;
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   safe: { flex: 1, backgroundColor: colors.screen },
   flex: { flex: 1 },
   content: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.lg },
@@ -327,4 +334,4 @@ const styles = StyleSheet.create({
   },
   secondaryText: { fontSize: 15, fontWeight: '700', color: colors.text },
   noImageButton: { marginTop: spacing.md },
-});
+}));

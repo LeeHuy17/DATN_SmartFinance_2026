@@ -1,10 +1,10 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import { softColor } from '@/features/transactions/categories';
+import { categoryTint } from '@/features/transactions/categories';
 import type { Transaction } from '@/features/transactions/types';
 import { formatDayMonth, formatRelativeDay, formatSignedVnd } from '@/lib/format';
-import { colors, radius, spacing } from '@/theme';
+import { makeStyles, radius, spacing, useTheme } from '@/theme';
 
 type Props = {
   item: Transaction;
@@ -18,6 +18,8 @@ type Props = {
 };
 
 export function TransactionItem({ item, onPress, when = 'relative', divider }: Props) {
+  const styles = useStyles();
+  const { colors, isDark } = useTheme();
   const { category } = item;
   const income = item.amount > 0;
   const whenText =
@@ -30,8 +32,8 @@ export function TransactionItem({ item, onPress, when = 'relative', divider }: P
       accessibilityRole="button"
       accessibilityLabel={`${item.title}, ${formatSignedVnd(item.amount)}`}
     >
-      <View style={[styles.icon, { backgroundColor: softColor(category.color) }]}>
-        <Ionicons name={category.icon} size={20} color={category.color} />
+      <View style={[styles.icon, { backgroundColor: categoryTint(category.color, isDark).bg }]}>
+        <Ionicons name={category.icon} size={20} color={categoryTint(category.color, isDark).fg} />
       </View>
 
       <View style={styles.texts}>
@@ -50,7 +52,7 @@ export function TransactionItem({ item, onPress, when = 'relative', divider }: P
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -70,4 +72,4 @@ const styles = StyleSheet.create({
   title: { fontSize: 16, fontWeight: '600', color: colors.text },
   meta: { marginTop: 2, fontSize: 13, lineHeight: 18, color: colors.textMuted },
   amount: { fontSize: 15, fontWeight: '700' },
-});
+}));

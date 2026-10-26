@@ -2,7 +2,7 @@ import { Platform } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 
 import type { CategorySlice } from '@/features/reports/aggregate';
-import { colors } from '@/theme';
+import { useColors } from '@/theme';
 
 type Props = {
   slices: CategorySlice[];
@@ -18,6 +18,7 @@ const GAP_PX = 2;
 
 /** Biểu đồ vòng: mỗi phần là một cung của đường tròn có nét dày, vẽ theo chiều kim đồng hồ từ 12 giờ */
 export function DonutChart({ slices, selected, onSelect, size = 132, thickness = 22 }: Props) {
+  const colors = useColors();
   const r = (size - thickness) / 2;
   const circumference = 2 * Math.PI * r;
   const total = slices.reduce((s, x) => s + x.amount, 0);

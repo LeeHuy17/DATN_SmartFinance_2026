@@ -4,7 +4,6 @@ import {
   Platform,
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   TextInput,
   View,
@@ -24,13 +23,15 @@ import {
   registerAccount,
   WeakPasswordError,
 } from '@/features/auth/registerApi';
-import { colors, spacing } from '@/theme';
+import { makeStyles, spacing, useColors } from '@/theme';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 type FieldErrors = { fullName?: string; email?: string };
 
 export default function RegisterScreen() {
+  const styles = useStyles();
+  const colors = useColors();
   const router = useRouter();
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
@@ -197,7 +198,7 @@ export default function RegisterScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   safe: { flex: 1, backgroundColor: colors.background },
   flex: { flex: 1 },
   content: {
@@ -228,4 +229,4 @@ const styles = StyleSheet.create({
   },
   footerText: { fontSize: 14, color: colors.textMuted },
   link: { fontSize: 14, fontWeight: '700', color: colors.primary },
-});
+}));

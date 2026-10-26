@@ -1,27 +1,32 @@
 import { useCallback, useState } from 'react';
 import { View } from 'react-native';
 import { Stack } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 
 import { AnimatedSplash, SPLASH_BACKGROUND } from '@/components/AnimatedSplash';
 import { ToastHost } from '@/components/Toast';
 import { AuthProvider, useAuth } from '@/features/auth/AuthProvider';
 import { InAppBanner } from '@/features/notifications/components/InAppBanner';
+import { ThemeProvider, useTheme } from '@/theme';
 
 // Giữ splash tĩnh của hệ điều hành cho tới khi splash động (Lottie) sẵn sàng thay thế
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
-// TODO: bọc thêm Provider (React Query, theme)
+// TODO: bọc thêm Provider (React Query)
 export default function RootLayout() {
   return (
-    <AuthProvider>
-      <RootNavigator />
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <RootNavigator />
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 
 function RootNavigator() {
   const { isLoading, isSignedIn } = useAuth();
+  const { colors, isDark } = useTheme();
   const [animationDone, setAnimationDone] = useState(false);
   const [splashVisible, setSplashVisible] = useState(true);
 
@@ -33,9 +38,13 @@ function RootNavigator() {
 
   return (
     <View style={{ flex: 1, backgroundColor: SPLASH_BACKGROUND }}>
+      <StatusBar style={isDark ? 'light' : 'dark'} />
       {/* Dựng điều hướng ngay khi đọc xong token, nằm bên dưới lớp splash động */}
       {!isLoading && (
-        <Stack screenOptions={{ headerShown: false }}>
+        <Stack
+          // Nền màn theo theme để lúc chuyển màn không lóe nền trắng ở giao diện tối
+          screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.screen } }}
+        >
           {/* Chưa đăng nhập: chỉ vào được màn hình xác thực, mọi đường dẫn khác chuyển về /login */}
           <Stack.Protected guard={!isSignedIn}>
             <Stack.Screen name="(auth)/login" />

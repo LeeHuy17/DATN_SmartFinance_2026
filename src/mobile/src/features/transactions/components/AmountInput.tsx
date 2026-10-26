@@ -1,8 +1,8 @@
 import { forwardRef, useState } from 'react';
-import { Platform, StyleSheet, Text, TextInput, View, type TextStyle, TextInputInstance } from 'react-native';
+import { Platform, Text, TextInput, View, type TextStyle, TextInputInstance } from 'react-native';
 
 import { FieldError } from '@/components/FieldError';
-import { colors, spacing } from '@/theme';
+import { makeStyles, spacing, useColors } from '@/theme';
 
 /** Tối đa 12 chữ số (dưới 1.000 tỷ) */
 const MAX_DIGITS = 12;
@@ -25,6 +25,8 @@ export const AmountInput = forwardRef<TextInputInstance, Props>(function AmountI
   { value, onChange, error, autoFocus, label = 'Số tiền' },
   ref,
 ) {
+  const styles = useStyles();
+  const colors = useColors();
   const [focused, setFocused] = useState(false);
 
   return (
@@ -60,7 +62,7 @@ const webNoOutline = Platform.select({
   default: {},
 });
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   label: { fontSize: 13, fontWeight: '600', color: colors.text },
   row: {
     flexDirection: 'row',
@@ -82,4 +84,4 @@ const styles = StyleSheet.create({
     ...webNoOutline,
   },
   currency: { marginBottom: spacing.sm, fontSize: 20, fontWeight: '600', color: colors.textMuted },
-});
+}));

@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 
-import { colors } from '@/theme';
+import type { Colors } from '@/theme';
 import type { CategoryKind, IconName } from './types';
 
 /** Bảng màu cho danh mục (theo thiết kế, 8 màu) */
@@ -50,16 +50,33 @@ export const resolveIcon = (key: string): IconName =>
 /** Nền nhạt của một màu danh mục (độ mờ ~13%) */
 export const softColor = (hex: string) => `${hex}22`;
 
+/** Pha màu với trắng theo tỉ lệ `amount` (0–1) */
+const lighten = (hex: string, amount: number) => {
+  const n = parseInt(hex.slice(1, 7), 16);
+  const mix = (c: number) => Math.round(c + (255 - c) * amount);
+  const [r, g, b] = [mix(n >> 16), mix((n >> 8) & 0xff), mix(n & 0xff)];
+  return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`;
+};
+
+/**
+ * Màu icon và nền ô vuông của danh mục. Giao diện tối: các màu danh mục (khá đậm) bị chìm trên nền tối,
+ * nên pha sáng icon và tăng độ đậm nền.
+ */
+export const categoryTint = (hex: string, isDark: boolean) =>
+  isDark ? { fg: lighten(hex, 0.35), bg: `${hex}55` } : { fg: hex, bg: softColor(hex) };
+
 /**
  * Lựa chọn Chi tiêu / Thu nhập cho SegmentedControl, dùng chung ở Thêm giao dịch và Quản lý danh mục.
  * Chi tiêu: chữ đỏ nền hồng (gợi ý trừ tiền); Thu nhập: chữ xanh nền xanh nhạt.
  */
-export const KIND_OPTIONS: {
+export const kindOptions = (
+  colors: Colors,
+): {
   value: CategoryKind;
   label: string;
   selectedColor: string;
   selectedBackground: string;
-}[] = [
+}[] => [
   { value: 'expense', label: 'Chi tiêu', selectedColor: colors.danger, selectedBackground: colors.dangerSoft },
   { value: 'income', label: 'Thu nhập', selectedColor: colors.primary, selectedBackground: colors.primarySoft },
 ];

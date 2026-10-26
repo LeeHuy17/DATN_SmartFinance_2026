@@ -1,12 +1,13 @@
 import { useEffect, useRef } from 'react';
-import { ActivityIndicator, Animated, Platform, Pressable, StyleSheet, Text, View, type DimensionValue } from 'react-native';
+import { ActivityIndicator, Animated, Platform, Pressable, Text, View, type DimensionValue } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { PrimaryButton } from '@/components/PrimaryButton';
-import { colors, radius, spacing } from '@/theme';
+import { makeStyles, radius, spacing, useColors } from '@/theme';
 
 /** Nút viền (hành động phụ) theo thiết kế */
 function SecondaryButton({ title, onPress }: { title: string; onPress: () => void }) {
+  const styles = useStyles();
   return (
     <Pressable style={styles.secondary} onPress={onPress} accessibilityRole="button">
       <Text style={styles.secondaryText}>{title}</Text>
@@ -16,6 +17,8 @@ function SecondaryButton({ title, onPress }: { title: string; onPress: () => voi
 
 /** Đang phân tích: thẻ xanh nhạt có vòng xoay + 2 thẻ khung chờ nhấp nháy */
 export function AdviceLoading() {
+  const styles = useStyles();
+  const colors = useColors();
   const opacity = useRef(new Animated.Value(1)).current;
   useEffect(() => {
     const native = Platform.OS !== 'web';
@@ -63,6 +66,8 @@ type EmptyProps = {
 
 /** Chưa đủ dữ liệu: cho biết cần thêm bao nhiêu giao dịch */
 export function AdviceEmpty({ transactions, minTransactions, onAdd, onScan }: EmptyProps) {
+  const styles = useStyles();
+  const colors = useColors();
   const needed = Math.max(1, minTransactions - transactions);
   return (
     <View style={styles.empty}>
@@ -82,6 +87,8 @@ export function AdviceEmpty({ transactions, minTransactions, onAdd, onScan }: Em
 
 /** Dải vàng báo một việc không làm được (vd. phân tích quá nhiều lần) trong khi kết quả cũ vẫn hiển thị */
 export function NoticeBanner({ text }: { text: string }) {
+  const styles = useStyles();
+  const colors = useColors();
   return (
     <View style={styles.banner} accessibilityRole="alert">
       <Ionicons name="alert-circle-outline" size={18} color={colors.warm} />
@@ -100,6 +107,8 @@ export function AdviceError({
   onRetry: () => void;
   onReports: () => void;
 }) {
+  const styles = useStyles();
+  const colors = useColors();
   return (
     <View style={[styles.card, styles.errorCard]}>
       <View style={[styles.circle, styles.circleSmall, { backgroundColor: colors.dangerSoft }]}>
@@ -115,7 +124,7 @@ export function AdviceError({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   card: {
     marginTop: spacing.md,
     padding: spacing.md,
@@ -164,4 +173,4 @@ const styles = StyleSheet.create({
   errorCard: { alignItems: 'center', gap: spacing.sm + 2, paddingVertical: spacing.lg },
   errorTitle: { marginTop: spacing.xs, fontSize: 17, fontWeight: '700', color: colors.text, textAlign: 'center' },
   errorText: { fontSize: 14, lineHeight: 20, color: colors.textMuted, textAlign: 'center', marginBottom: spacing.xs },
-});
+}));

@@ -1,23 +1,27 @@
-import { useCallback, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { useCallback, useState, type ReactNode } from 'react';
+import { Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import { showToast } from '@/components/Toast';
 import { useAuth } from '@/features/auth/AuthProvider';
 import { getUnreadCount } from '@/features/notifications/notificationsApi';
 import { Avatar } from '@/features/profile/components/Avatar';
 import { AvatarSheet } from '@/features/profile/components/AvatarSheet';
 import { avatarErrorMessage, getProfile, getProfileNow, updateProfile, type Profile } from '@/features/profile/profileStore';
-import { colors, radius, spacing } from '@/theme';
+import { makeStyles, radius, spacing, useColors, useTheme } from '@/theme';
 
 const APP_VERSION = 'v1.0.0';
 
 export default function ProfileScreen() {
+  const styles = useStyles();
+  const colors = useColors();
   const router = useRouter();
   const { signOut } = useAuth();
+  const { isDark, toggleTheme } = useTheme();
   const [profile, setProfile] = useState<Profile>(getProfileNow);
   const [unread, setUnread] = useState(0);
   const [avatarSheet, setAvatarSheet] = useState(false);
@@ -111,9 +115,15 @@ export default function ProfileScreen() {
             value={unread > 0 ? `${unread} chưa đọc` : undefined}
             onPress={() => router.push('/notification-settings')}
           />
-          {/* Hiện chỉ hỗ trợ tiếng Việt và giao diện sáng */}
+          {/* Hiện chỉ hỗ trợ tiếng Việt */}
           <Row icon="globe-outline" label="Ngôn ngữ" value="Tiếng Việt" />
-          <Row icon="moon-outline" label="Giao diện" value="Sáng" last />
+          <Row
+            icon={isDark ? 'moon-outline' : 'sunny-outline'}
+            label="Giao diện tối"
+            onPress={toggleTheme}
+            trailing={<ThemeToggle />}
+            last
+          />
         </Section>
 
         <Section title="HỖ TRỢ VÀ PHÁP LÝ">
@@ -154,7 +164,8 @@ export default function ProfileScreen() {
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({ title, children }: { title: string; children: ReactNode }) {
+  const styles = useStyles();
   return (
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>{title}</Text>
@@ -169,13 +180,18 @@ function Row({
   value,
   last,
   onPress,
+  trailing,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
   value?: string;
   last?: boolean;
   onPress?: () => void;
+  /** Phần tử bên phải thay cho mũi tên (vd. công tắc) */
+  trailing?: ReactNode;
 }) {
+  const styles = useStyles();
+  const colors = useColors();
   return (
     <Pressable
       style={({ pressed }) => [styles.row, !last && styles.rowDivider, pressed && onPress && styles.pressed]}
@@ -189,12 +205,12 @@ function Row({
       </View>
       <Text style={styles.rowLabel}>{label}</Text>
       {value && <Text style={styles.rowValue}>{value}</Text>}
-      {onPress && <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />}
+      {trailing ?? (onPress && <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />)}
     </Pressable>
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   safe: { flex: 1, backgroundColor: colors.screen },
   header: {
     flexDirection: 'row',
@@ -275,4 +291,4 @@ const styles = StyleSheet.create({
     backgroundColor: colors.dangerSoft,
   },
   signOutText: { fontSize: 16, fontWeight: '700', color: colors.danger },
-});
+}));

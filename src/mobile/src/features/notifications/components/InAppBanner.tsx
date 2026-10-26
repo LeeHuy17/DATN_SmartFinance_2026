@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Platform, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,7 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { lookOf } from '@/features/notifications/notificationLook';
 import { markRead } from '@/features/notifications/notificationsApi';
 import { onNewNotification, type BannerMessage } from '@/features/notifications/notificationsStore';
-import { colors, radius, spacing } from '@/theme';
+import { makeStyles, radius, spacing, useColors } from '@/theme';
 
 /** Banner tự ẩn sau chừng này ms */
 const VISIBLE_MS = 5000;
@@ -17,6 +17,8 @@ const VISIBLE_MS = 5000;
  * Đặt một lần ở layout gốc; chạm để mở, bấm X để đóng.
  */
 export function InAppBanner() {
+  const styles = useStyles();
+  const colors = useColors();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const [current, setCurrent] = useState<BannerMessage | null>(null);
@@ -43,7 +45,7 @@ export function InAppBanner() {
   );
 
   if (!current) return null;
-  const look = lookOf(current);
+  const look = lookOf(current, colors);
 
   return (
     <Animated.View
@@ -84,7 +86,7 @@ export function InAppBanner() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   wrap: { position: 'absolute', left: spacing.sm + 2, right: spacing.sm + 2, zIndex: 100 },
   banner: {
     flexDirection: 'row',
@@ -93,7 +95,7 @@ const styles = StyleSheet.create({
     padding: spacing.md - 4,
     borderRadius: radius.lg,
     backgroundColor: colors.background,
-    boxShadow: '0 8px 24px rgba(19, 34, 28, 0.18)',
+    boxShadow: `0 8px 24px rgba(${colors.shadow}, 0.18)`,
   },
   icon: { width: 36, height: 36, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
   texts: { flex: 1 },
@@ -102,4 +104,4 @@ const styles = StyleSheet.create({
   now: { fontSize: 12, color: colors.textMuted },
   title: { marginTop: 1, fontSize: 14, fontWeight: '700', color: colors.text },
   body: { marginTop: 1, fontSize: 13, lineHeight: 18, color: colors.textMuted },
-});
+}));

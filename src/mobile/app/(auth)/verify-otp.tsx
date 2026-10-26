@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
@@ -15,9 +15,11 @@ import {
   requestPasswordReset,
   verifyResetCode,
 } from '@/features/auth/passwordResetApi';
-import { colors, spacing } from '@/theme';
+import { makeStyles, spacing, useColors } from '@/theme';
 
 export default function VerifyOtpScreen() {
+  const styles = useStyles();
+  const colors = useColors();
   const { identifier } = useLocalSearchParams<{ identifier?: string }>();
   const router = useRouter();
   const [code, setCode] = useState('');
@@ -122,7 +124,7 @@ export default function VerifyOtpScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   strong: { fontWeight: '700', color: colors.text },
   error: { marginTop: spacing.md },
   resend: { marginTop: spacing.lg, alignItems: 'center', gap: spacing.md },
@@ -131,4 +133,4 @@ const styles = StyleSheet.create({
   resendWaiting: { fontSize: 15, fontWeight: '600', color: colors.textMuted },
   resendLink: { fontSize: 15, fontWeight: '700', color: colors.primary },
   button: { marginTop: spacing.lg },
-});
+}));

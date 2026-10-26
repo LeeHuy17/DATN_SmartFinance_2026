@@ -1,9 +1,9 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 
 import type { Bucket } from '@/features/reports/aggregate';
 import { formatShortVnd } from '@/lib/format';
-import { colors, spacing } from '@/theme';
+import { makeStyles, spacing, useColors } from '@/theme';
 
 const PLOT_HEIGHT = 140;
 const MAX_BAR_WIDTH = 24;
@@ -15,6 +15,8 @@ const BAR_MUTED = '#9FC8B5';
  * Chạm vào cột để xem số tiền (mặc định hiện ở cột của kỳ hiện tại).
  */
 export function SpendingBars({ buckets }: { buckets: Bucket[] }) {
+  const styles = useStyles();
+  const colors = useColors();
   const max = Math.max(...buckets.map((b) => b.amount), 0);
   const currentIndex = buckets.findIndex((b) => b.current);
   const [picked, setPicked] = useState<number | null>(null);
@@ -57,7 +59,7 @@ export function SpendingBars({ buckets }: { buckets: Bucket[] }) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   plot: { height: PLOT_HEIGHT, flexDirection: 'row', alignItems: 'flex-end' },
   slot: { flex: 1, height: '100%', alignItems: 'center', justifyContent: 'flex-end' },
   bar: {
@@ -72,4 +74,4 @@ const styles = StyleSheet.create({
   labels: { flexDirection: 'row', marginTop: spacing.sm },
   label: { flex: 1, textAlign: 'center', fontSize: 12, color: colors.textMuted },
   labelCurrent: { fontWeight: '700', color: colors.text },
-});
+}));

@@ -1,6 +1,6 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 
-import { colors, radius } from '@/theme';
+import { makeStyles, radius } from '@/theme';
 
 type Option<T extends string> = {
   value: T;
@@ -18,6 +18,7 @@ type Props<T extends string> = {
 
 /** Công tắc nhiều lựa chọn dạng viên thuốc (vd: Chi tiêu / Thu nhập) */
 export function SegmentedControl<T extends string>({ options, value, onChange }: Props<T>) {
+  const styles = useStyles();
   return (
     <View style={styles.track} accessibilityRole="tablist">
       {options.map((o) => {
@@ -50,7 +51,7 @@ export function SegmentedControl<T extends string>({ options, value, onChange }:
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   track: {
     flexDirection: 'row',
     padding: 4,
@@ -66,8 +67,8 @@ const styles = StyleSheet.create({
   },
   segmentSelected: {
     backgroundColor: colors.background,
-    boxShadow: '0 1px 3px rgba(19, 34, 28, 0.12)',
+    boxShadow: `0 1px 3px rgba(${colors.shadow}, 0.12)`,
   },
   label: { fontSize: 15, fontWeight: '600', color: colors.textMuted },
   labelSelected: { fontWeight: '700', color: colors.primary },
-});
+}));

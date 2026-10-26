@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { BottomSheet } from '@/components/BottomSheet';
 import { PrimaryButton } from '@/components/PrimaryButton';
-import { colors, radius, spacing } from '@/theme';
+import { makeStyles, radius, spacing, useColors } from '@/theme';
 
 type Props = {
   visible: boolean;
@@ -24,6 +24,8 @@ const toIso = (y: number, m: number, d: number) => `${y}-${pad(m + 1)}-${pad(d)}
 
 /** Bảng chọn ngày sinh: lịch theo tháng; chạm tiêu đề tháng để chọn nhanh năm */
 export function BirthDateSheet({ visible, value, onClose, onSelect }: Props) {
+  const styles = useStyles();
+  const colors = useColors();
   const today = new Date();
   const initial = value ? new Date(`${value}T00:00:00`) : new Date(DEFAULT_YEAR, 0, 1);
   const [year, setYear] = useState(initial.getFullYear());
@@ -175,7 +177,7 @@ export function BirthDateSheet({ visible, value, onClose, onSelect }: Props) {
 
 const DAY = 38;
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   flex: { flex: 1 },
   nav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.sm },
   navTitle: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, padding: spacing.xs },
@@ -208,4 +210,4 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   cancelText: { fontSize: 16, fontWeight: '700', color: colors.text },
-});
+}));

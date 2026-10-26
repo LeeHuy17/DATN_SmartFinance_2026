@@ -1,9 +1,9 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import type { Budget } from '@/features/budgets/budgetsApi';
 import { formatVnd } from '@/lib/format';
-import { colors, radius, spacing } from '@/theme';
+import { makeStyles, radius, spacing, useColors } from '@/theme';
 
 /** Tối đa chừng này dòng, còn lại gom vào "và n ngân sách khác" */
 const MAX_ROWS = 3;
@@ -12,6 +12,8 @@ type Props = { alerts: Budget[]; onPress: () => void };
 
 /** Thẻ trên Tổng quan: các ngân sách tháng này đã chạm ngưỡng cảnh báo hoặc đã vượt (từ /budgets/alerts/) */
 export function BudgetAlertCard({ alerts, onPress }: Props) {
+  const styles = useStyles();
+  const colors = useColors();
   if (alerts.length === 0) return null;
   const anyExceeded = alerts.some((a) => a.status === 'exceeded');
   const tone = anyExceeded
@@ -49,11 +51,11 @@ export function BudgetAlertCard({ alerts, onPress }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   card: { marginTop: spacing.md, padding: spacing.md - 2, borderRadius: radius.lg, gap: 4 },
   pressed: { opacity: 0.7 },
   header: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: 2 },
   title: { flex: 1, fontSize: 14, fontWeight: '700' },
   row: { fontSize: 13, lineHeight: 19, color: colors.text },
   name: { fontWeight: '700' },
-});
+}));

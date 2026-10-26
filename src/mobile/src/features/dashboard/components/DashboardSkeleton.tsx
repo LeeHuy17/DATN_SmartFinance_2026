@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
-import { Animated, Platform, StyleSheet, Text, View, type DimensionValue } from 'react-native';
+import { Animated, Platform, Text, View, type DimensionValue } from 'react-native';
 
-import { colors, radius, spacing } from '@/theme';
+import { makeStyles, radius, spacing, useColors } from '@/theme';
 import { WALLET_CARD_WIDTH } from './WalletList';
 
 /** Khối xám giữ chỗ */
@@ -9,14 +9,15 @@ function Bone({
   w,
   h,
   r = h / 2,
-  color = colors.skeleton,
+  color,
 }: {
   w: DimensionValue;
   h: number;
   r?: number;
   color?: string;
 }) {
-  return <View style={{ width: w, height: h, borderRadius: r, backgroundColor: color }} />;
+  const colors = useColors();
+  return <View style={{ width: w, height: h, borderRadius: r, backgroundColor: color ?? colors.skeleton }} />;
 }
 
 const ON_CARD = 'rgba(255,255,255,0.3)';
@@ -24,6 +25,7 @@ const ON_CARD_SOFT = 'rgba(255,255,255,0.2)';
 
 /** Khung chờ của màn hình Tổng quan, nhấp nháy nhẹ trong lúc tải */
 export function DashboardSkeleton() {
+  const styles = useStyles();
   const opacity = useRef(new Animated.Value(1)).current;
 
   useEffect(() => {
@@ -90,7 +92,7 @@ export function DashboardSkeleton() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   flex: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'center' },
   headerTexts: { flex: 1, gap: spacing.sm },
@@ -113,4 +115,4 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.textMuted,
   },
-});
+}));

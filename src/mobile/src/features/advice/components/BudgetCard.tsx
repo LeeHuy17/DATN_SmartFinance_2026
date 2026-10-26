@@ -1,10 +1,10 @@
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import type { Budget, BudgetStatus } from '@/features/budgets/budgetsApi';
 import { CategoryIcon } from '@/features/transactions/components/CategoryIcon';
 import { formatVnd } from '@/lib/format';
-import { colors, radius, spacing } from '@/theme';
+import { makeStyles, radius, spacing, useColors, type Colors } from '@/theme';
 
 type Props = {
   /** Tháng đang xem (ngày 1 của tháng, giờ máy) */
@@ -21,17 +21,21 @@ type Props = {
 };
 
 /** Màu và nhãn theo trạng thái server trả (warning từ ngưỡng cảnh báo, exceeded khi vượt hạn mức) */
-const LEVEL: Record<BudgetStatus, { color: string; icon: keyof typeof Ionicons.glyphMap | null; label: string | null }> = {
+const levels = (
+  colors: Colors,
+): Record<BudgetStatus, { color: string; icon: keyof typeof Ionicons.glyphMap | null; label: string | null }> => ({
   ok: { color: colors.primary, icon: null, label: null },
   warning: { color: colors.expense, icon: 'warning-outline', label: 'Sắp hết' },
   exceeded: { color: colors.danger, icon: 'alert-circle', label: 'Đã vượt' },
-};
+});
 
 /** remaining âm nghĩa là đã vượt: hiện "Vượt 32.000đ" thay vì số âm */
 const remainingText = (b: Budget) =>
   b.remaining < 0 ? `Vượt ${formatVnd(b.remaining)}` : `Còn ${formatVnd(b.remaining)}`;
 
 export function BudgetCard({ month, budgets, error, onRetry, onChangeMonth, onAdd, onEdit }: Props) {
+  const styles = useStyles();
+  const colors = useColors();
   const now = new Date();
   const isCurrentMonth = month.getFullYear() === now.getFullYear() && month.getMonth() === now.getMonth();
   const title = isCurrentMonth
@@ -60,7 +64,7 @@ export function BudgetCard({ month, budgets, error, onRetry, onChangeMonth, onAd
     }
     return budgets.map((b) => {
       const editHandler = b.editable ? onEdit : undefined;
-      const l = b.isActive ? LEVEL[b.status] : { color: colors.textMuted, icon: null, label: 'Đang tắt' };
+      const l = b.isActive ? levels(colors)[b.status] : { color: colors.textMuted, icon: null, label: 'Đang tắt' };
       const percent = Math.round(b.percent);
       return (
         <Pressable
@@ -136,7 +140,7 @@ export function BudgetCard({ month, budgets, error, onRetry, onChangeMonth, onAd
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   card: {
     marginTop: spacing.md,
     padding: spacing.md,
@@ -171,4 +175,4 @@ const styles = StyleSheet.create({
   amountsRow: { marginTop: 6, flexDirection: 'row', justifyContent: 'space-between' },
   amounts: { fontSize: 13, color: colors.textMuted },
   over: { fontWeight: '700', color: colors.danger },
-});
+}));
