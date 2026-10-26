@@ -1,15 +1,17 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 import { PrimaryButton } from '@/components/PrimaryButton';
-import { colors, spacing } from '@/theme';
+import { makeStyles, spacing, useColors } from '@/theme';
 
 type Props = { title: string; message: string };
 
 /** Màn hình báo thành công (đăng ký, đổi mật khẩu) với nút "Đăng nhập ngay" */
 export function AuthSuccess({ title, message }: Props) {
+  const styles = useStyles();
+  const colors = useColors();
   const router = useRouter();
 
   return (
@@ -35,7 +37,7 @@ export function AuthSuccess({ title, message }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   safe: { flex: 1, backgroundColor: colors.background },
   content: {
     flex: 1,
@@ -74,4 +76,4 @@ const styles = StyleSheet.create({
     color: colors.textMuted,
   },
   button: { marginHorizontal: spacing.lg, marginBottom: spacing.lg },
-});
+}));

@@ -1,4 +1,4 @@
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -13,9 +13,11 @@ import { WalletList } from '@/features/dashboard/components/WalletList';
 import { useDashboard } from '@/features/dashboard/useDashboard';
 import { TransactionItem } from '@/features/transactions/components/TransactionItem';
 import { useTransactionQuickView } from '@/features/transactions/useTransactionQuickView';
-import { colors, radius, spacing } from '@/theme';
+import { makeStyles, radius, spacing, useColors } from '@/theme';
 
 export default function OverviewScreen() {
+  const styles = useStyles();
+  const colors = useColors();
   const router = useRouter();
   const { data, loading, refreshing, error, refresh, retry, reload } = useDashboard();
   const quickView = useTransactionQuickView(reload);
@@ -119,7 +121,7 @@ export default function OverviewScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   safe: { flex: 1, backgroundColor: colors.screen },
   content: {
     flexGrow: 1,
@@ -154,4 +156,4 @@ const styles = StyleSheet.create({
   errorTitle: { marginTop: spacing.sm, fontSize: 17, fontWeight: '700', color: colors.text },
   errorText: { fontSize: 14, color: colors.textMuted, textAlign: 'center' },
   retry: { marginTop: spacing.md, alignSelf: 'stretch' },
-});
+}));

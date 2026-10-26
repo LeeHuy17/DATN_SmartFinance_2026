@@ -1,10 +1,10 @@
 import type { ReactNode } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
-import { colors, radius, spacing } from '@/theme';
+import { makeStyles, radius, spacing, useColors } from '@/theme';
 
 type Props = {
   step: number;
@@ -18,6 +18,8 @@ const TOTAL_STEPS = 3;
 
 /** Khung chung cho 3 bước quên mật khẩu: nút quay lại, "Bước x/3", tiêu đề và link về Đăng nhập */
 export function ForgotPasswordLayout({ step, icon, title, subtitle, children }: Props) {
+  const styles = useStyles();
+  const colors = useColors();
   const router = useRouter();
 
   const goBack = () => {
@@ -73,7 +75,7 @@ export function ForgotPasswordLayout({ step, icon, title, subtitle, children }: 
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   safe: { flex: 1, backgroundColor: colors.background },
   flex: { flex: 1 },
   content: {
@@ -120,4 +122,4 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   backToLoginText: { fontSize: 15, fontWeight: '700', color: colors.primary },
-});
+}));

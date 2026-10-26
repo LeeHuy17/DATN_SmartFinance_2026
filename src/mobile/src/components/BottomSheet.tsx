@@ -16,7 +16,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
-import { colors, radius, spacing } from '@/theme';
+import { makeStyles, radius, spacing, useColors } from '@/theme';
 
 type Props = {
   visible: boolean;
@@ -33,6 +33,8 @@ const CLOSE_VELOCITY = 0.8;
 
 /** Bảng trượt từ dưới lên: thanh kéo, tiêu đề, nút đóng; chạm nền tối hoặc vuốt xuống để đóng */
 export function BottomSheet({ visible, title, onClose, children, footer }: Props) {
+  const styles = useStyles();
+  const colors = useColors();
   const insets = useSafeAreaInsets();
   // Tự điều khiển hiệu ứng (Modal không animate) để nền tối mờ dần tại chỗ, không trôi theo khung
   const screenHeight = Dimensions.get('window').height;
@@ -111,7 +113,7 @@ export function BottomSheet({ visible, title, onClose, children, footer }: Props
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   flex: { flex: 1 },
   backdrop: { backgroundColor: colors.overlay },
   sheet: {
@@ -143,4 +145,4 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg - 4,
     paddingTop: spacing.md - 4,
   },
-});
+}));

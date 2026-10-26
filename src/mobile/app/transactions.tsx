@@ -6,7 +6,6 @@ import {
   Pressable,
   RefreshControl,
   ScrollView,
-  StyleSheet,
   Text,
   TextInput,
   View,
@@ -37,7 +36,7 @@ import type { Category, Transaction, Wallet } from '@/features/transactions/type
 import { useTransactionQuickView } from '@/features/transactions/useTransactionQuickView';
 import * as walletsApi from '@/features/wallets/walletsApi';
 import { formatDayMonth, formatRelativeDay, formatVnd } from '@/lib/format';
-import { colors, radius, spacing } from '@/theme';
+import { makeStyles, radius, spacing, useColors } from '@/theme';
 
 const TYPE_CHIPS: { value: TypeFilter; label: string }[] = [
   { value: 'all', label: 'Tất cả' },
@@ -59,6 +58,8 @@ const PAGE_SIZE = 20;
 const SEARCH_DELAY_MS = 300;
 
 export default function TransactionHistoryScreen() {
+  const styles = useStyles();
+  const colors = useColors();
   const router = useRouter();
   // Mở từ tab Ví: lọc sẵn theo ví để người dùng truy vết và sửa giao dịch sai
   const params = useLocalSearchParams<{ walletId?: string }>();
@@ -354,6 +355,7 @@ export default function TransactionHistoryScreen() {
 }
 
 function Group({ title, total, children }: { title: string; total: number; children: ReactNode }) {
+  const styles = useStyles();
   return (
     <View style={styles.group}>
       <View style={styles.groupHeader}>
@@ -371,7 +373,7 @@ const webNoOutline = Platform.select({
   default: {},
 });
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   loadingMore: { marginVertical: spacing.md },
   safe: { flex: 1, backgroundColor: colors.screen },
   header: {
@@ -458,4 +460,4 @@ const styles = StyleSheet.create({
   emptyTitle: { marginTop: spacing.xs, fontSize: 16, fontWeight: '700', color: colors.text },
   emptyText: { fontSize: 14, color: colors.textMuted, textAlign: 'center' },
   link: { marginTop: spacing.sm, fontSize: 14, fontWeight: '700', color: colors.primary },
-});
+}));

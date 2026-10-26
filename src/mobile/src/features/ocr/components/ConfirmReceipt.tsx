@@ -5,7 +5,6 @@ import {
   Platform,
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   TextInput,
   View,
@@ -32,7 +31,7 @@ import type { Category, Transaction, Wallet } from '@/features/transactions/type
 import { getFieldErrors } from '@/lib/api/client';
 import { addDays, toYmd } from '@/lib/date';
 import { formatDayMonth, formatFullDate, formatVnd, maskDayInput } from '@/lib/format';
-import { colors, radius, spacing } from '@/theme';
+import { makeStyles, radius, spacing, useColors } from '@/theme';
 
 type Props = {
   uri?: string;
@@ -46,6 +45,8 @@ type Editing = 'merchant' | 'date' | 'amount' | null;
 
 /** UI-03: xem lại kết quả AI đọc từ hóa đơn, sửa nếu cần; chỉ lưu khi bấm Xác nhận */
 export function ConfirmReceipt({ uri, fields, onRetake, onCancel, onSaved }: Props) {
+  const styles = useStyles();
+  const colors = useColors();
   const [merchant, setMerchant] = useState(fields.merchant ?? '');
   const [day, setDay] = useState(formatFullDate(fields.date ?? new Date()));
   const [amount, setAmount] = useState(fields.total);
@@ -261,6 +262,8 @@ function EditableRow({
   last?: boolean;
   children?: ReactNode;
 }) {
+  const styles = useStyles();
+  const colors = useColors();
   return (
     <View style={[styles.row, !last && styles.rowDivider]}>
       <View style={styles.flex}>
@@ -281,6 +284,8 @@ function InlineInput({
   suffix,
   ...props
 }: ComponentProps<typeof TextInput> & { onDone: () => void; suffix?: string }) {
+  const styles = useStyles();
+  const colors = useColors();
   return (
     <View style={styles.inlineBox}>
       <TextInput
@@ -302,7 +307,7 @@ const webNoOutline = Platform.select({
   default: {},
 });
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   flex: { flex: 1 },
   content: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.lg },
   bold: { fontWeight: '700' },
@@ -369,4 +374,4 @@ const styles = StyleSheet.create({
   cancelText: { fontSize: 16, fontWeight: '700', color: colors.text },
   confirm: { flex: 2 },
   sheetBody: { marginTop: spacing.md },
-});
+}));

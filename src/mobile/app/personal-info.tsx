@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -22,7 +22,7 @@ import {
 } from '@/features/profile/profileStore';
 import { ApiError, getFieldErrors } from '@/lib/api/client';
 import { confirm } from '@/lib/confirm';
-import { colors, radius, spacing } from '@/theme';
+import { makeStyles, radius, spacing, useColors } from '@/theme';
 
 /** 2001-08-15 → 15/08/2001 */
 const formatBirthDate = (iso: string | null) => (iso ? iso.split('-').reverse().join('/') : '');
@@ -35,6 +35,8 @@ const toForm = ({ email: _email, ...rest }: Profile): ProfileInput => rest;
 const FIELDS: (keyof ProfileInput)[] = ['avatarUri', 'fullName', 'phone', 'birthDate', 'gender'];
 
 export default function PersonalInfoScreen() {
+  const styles = useStyles();
+  const colors = useColors();
   const router = useRouter();
   const [saved, setSaved] = useState(getProfileNow);
   const [form, setForm] = useState<ProfileInput>(() => toForm(saved));
@@ -233,7 +235,7 @@ export default function PersonalInfoScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   safe: { flex: 1, backgroundColor: colors.background },
   flex: { flex: 1 },
   content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.lg },
@@ -311,4 +313,4 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   changeCount: { textAlign: 'center', fontSize: 13, color: colors.textMuted },
-});
+}));

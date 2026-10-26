@@ -1,6 +1,6 @@
 import { Image, StyleSheet, Text, View } from 'react-native';
 
-import { colors } from '@/theme';
+import { useColors } from '@/theme';
 
 /** "Nguyễn Văn An" / "Văn An" → "VA" */
 export function initials(name: string) {
@@ -22,6 +22,7 @@ type Props = {
 
 /** Ảnh đại diện; chưa có ảnh thì hiện chữ viết tắt của tên */
 export function Avatar({ name, uri, size, variant = 'solid' }: Props) {
+  const colors = useColors();
   const box = { width: size, height: size, borderRadius: size / 2 };
 
   if (uri) return <Image source={{ uri }} style={box} accessibilityIgnoresInvertColors />;

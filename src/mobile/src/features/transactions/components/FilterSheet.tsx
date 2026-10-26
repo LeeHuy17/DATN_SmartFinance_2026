@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, Text, TextInput, View } from 'react-native';
 
 import { BottomSheet } from '@/components/BottomSheet';
 import { Chip } from '@/components/Chip';
@@ -13,7 +13,7 @@ import {
   type TypeFilter,
 } from '@/features/transactions/filters';
 import type { Category, Wallet } from '@/features/transactions/types';
-import { colors, radius, spacing } from '@/theme';
+import { makeStyles, radius, spacing, useColors } from '@/theme';
 
 type Props = {
   visible: boolean;
@@ -37,6 +37,7 @@ const toggle = <T,>(list: T[], item: T) =>
 
 /** Bảng Bộ lọc trượt từ dưới lên; chỉnh trên bản nháp, bấm "Áp dụng" mới có hiệu lực */
 export function FilterSheet({ visible, value, wallets, categories, onApply, onClose }: Props) {
+  const styles = useStyles();
   const [draft, setDraft] = useState(value);
   const [wasVisible, setWasVisible] = useState(visible);
   // Mỗi lần mở lại thì bắt đầu từ bộ lọc đang áp dụng
@@ -140,6 +141,8 @@ export function FilterSheet({ visible, value, wallets, categories, onApply, onCl
 }
 
 function DayInput({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
+  const styles = useStyles();
+  const colors = useColors();
   return (
     <View style={styles.flex}>
       <Text style={styles.inputLabel}>{label}</Text>
@@ -156,7 +159,7 @@ function DayInput({ label, value, onChange }: { label: string; value: string; on
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   flex: { flex: 1 },
   section: {
     marginTop: spacing.md,
@@ -184,4 +187,4 @@ const styles = StyleSheet.create({
   apply: { flex: 2, backgroundColor: colors.primary },
   applyDisabled: { opacity: 0.5 },
   applyText: { fontSize: 15, fontWeight: '700', color: colors.onPrimary },
-});
+}));

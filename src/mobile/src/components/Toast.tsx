@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import { Animated, Platform, StyleSheet, Text } from 'react-native';
+import { Animated, Platform, Text } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
-import { colors, radius, spacing } from '@/theme';
+import { makeStyles, radius, spacing, useTheme } from '@/theme';
 
 /** Thông báo nhỏ tự ẩn sau chừng này ms */
 const VISIBLE_MS = 2500;
@@ -23,6 +23,8 @@ export function showToast(text: string, icon: ToastMessage['icon'] = 'checkmark-
 
 /** Đặt một lần ở layout gốc */
 export function ToastHost() {
+  const styles = useStyles();
+  const { colors, isDark } = useTheme();
   const insets = useSafeAreaInsets();
   const [current, setCurrent] = useState<ToastMessage | null>(null);
   const opacity = useRef(new Animated.Value(0)).current;
@@ -64,13 +66,13 @@ export function ToastHost() {
       accessibilityLiveRegion="polite"
       accessibilityRole="alert"
     >
-      <Ionicons name={current.icon} size={20} color={colors.primarySoft} />
+      <Ionicons name={current.icon} size={20} color={isDark ? colors.primary : colors.primarySoft} />
       <Text style={styles.text}>{current.text}</Text>
     </Animated.View>
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   toast: {
     position: 'absolute',
     alignSelf: 'center',
@@ -81,9 +83,9 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md - 4,
     paddingHorizontal: spacing.md,
     borderRadius: radius.xl,
-    backgroundColor: colors.text,
-    boxShadow: '0 6px 18px rgba(19, 34, 28, 0.25)',
+    backgroundColor: colors.inverseSurface,
+    boxShadow: `0 6px 18px rgba(${colors.shadow}, 0.25)`,
     zIndex: 200,
   },
-  text: { flexShrink: 1, fontSize: 14, fontWeight: '600', color: colors.onPrimary },
-});
+  text: { flexShrink: 1, fontSize: 14, fontWeight: '600', color: colors.onInverseSurface },
+}));

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Platform, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { Platform, Pressable, Switch, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { BottomSheet } from '@/components/BottomSheet';
@@ -16,10 +16,8 @@ import { AmountInput } from '@/features/transactions/components/AmountInput';
 import { listCategories, type CategoryWithCount } from '@/features/transactions/transactionsApi';
 import { getFieldErrors } from '@/lib/api/client';
 import { confirm } from '@/lib/confirm';
-import { colors, spacing } from '@/theme';
+import { makeStyles, spacing, useColors } from '@/theme';
 
-// react-native-web tô núm công tắc theo activeThumbColor (prop riêng của web), thiếu thì ra màu xanh ngọc
-const webSwitchProps = Platform.OS === 'web' ? { activeThumbColor: colors.onPrimary } : {};
 
 const THRESHOLDS = [50, 70, 80, 90, 100];
 /** Giá trị đặc biệt của ô chọn: ngân sách tổng (category = null) */
@@ -43,6 +41,10 @@ type Errors = { category?: string; amount?: string; alertThreshold?: string; for
  * Hạn mức áp dụng từ tháng hiện tại trở đi; các tháng đã qua giữ nguyên làm lịch sử.
  */
 export function BudgetSheet({ visible, budget, existing, onClose, onSaved }: Props) {
+  const styles = useStyles();
+  const colors = useColors();
+  // react-native-web tô núm công tắc theo activeThumbColor (prop riêng của web), thiếu thì ra màu xanh ngọc
+  const webSwitchProps = Platform.OS === 'web' ? { activeThumbColor: colors.onPrimary } : {};
   const editing = !!budget;
   const now = new Date();
   const monthLabel = `${now.getMonth() + 1}/${now.getFullYear()}`;
@@ -225,7 +227,7 @@ export function BudgetSheet({ visible, budget, existing, onClose, onSaved }: Pro
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   flex: { flex: 1 },
   section: { marginTop: spacing.md, marginBottom: spacing.sm, fontSize: 13, fontWeight: '600', color: colors.text },
   hint: { marginTop: spacing.xs, fontSize: 12, lineHeight: 17, color: colors.textMuted },
@@ -237,4 +239,4 @@ const styles = StyleSheet.create({
   toggleText: { marginTop: 2, fontSize: 12, lineHeight: 17, color: colors.textMuted },
   delete: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: spacing.lg, alignSelf: 'flex-start' },
   deleteText: { fontSize: 14, fontWeight: '600', color: colors.danger },
-});
+}));

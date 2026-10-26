@@ -1,10 +1,10 @@
 import type { ComponentProps } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Tabs, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
-import { colors, spacing } from '@/theme';
+import { makeStyles, spacing, useColors } from '@/theme';
 
 type TabBarProps = Parameters<NonNullable<ComponentProps<typeof Tabs>['tabBar']>>[0];
 type IconName = keyof typeof Ionicons.glyphMap;
@@ -22,6 +22,8 @@ const ICONS: Record<string, IconName> = {
 const CENTER_TAB = 'scan';
 
 export function TabBar({ state, descriptors, emitter, navigateToTab }: TabBarProps) {
+  const styles = useStyles();
+  const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
 
@@ -81,7 +83,7 @@ export function TabBar({ state, descriptors, emitter, navigateToTab }: TabBarPro
 
 const CENTER_SIZE = 56;
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   bar: {
     flexDirection: 'row',
     alignItems: 'flex-end',
@@ -104,4 +106,4 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     boxShadow: '0 6px 16px rgba(15, 107, 79, 0.3)',
   },
-});
+}));

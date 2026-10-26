@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -22,7 +22,7 @@ import { BudgetSheet } from '@/features/advice/components/BudgetSheet';
 import { listBudgets, type Budget } from '@/features/budgets/budgetsApi';
 import { addMonths, toMonthKey } from '@/lib/date';
 import { formatDateTime } from '@/lib/format';
-import { colors, radius, spacing } from '@/theme';
+import { makeStyles, radius, spacing, useColors, type Colors } from '@/theme';
 
 const RATE_LIMITED = 'Bạn phân tích quá nhiều lần, hãy thử lại sau.';
 const FAILED = 'Không kết nối được tới máy chủ. Kiểm tra mạng rồi thử lại sau ít phút.';
@@ -31,19 +31,21 @@ type TrendDirection = Insights['trends'][number]['direction'];
 type Priority = Insights['advice'][number]['priority'];
 
 // Xu hướng ở đây chủ yếu nói về chi tiêu: tăng tô cam để chú ý, giảm tô xanh
-const TREND: Record<TrendDirection, { icon: keyof typeof Ionicons.glyphMap; color: string; label: string }> = {
+const trendLooks = (colors: Colors): Record<TrendDirection, { icon: keyof typeof Ionicons.glyphMap; color: string; label: string }> => ({
   up: { icon: 'trending-up', color: colors.expense, label: 'Tăng' },
   down: { icon: 'trending-down', color: colors.primary, label: 'Giảm' },
   flat: { icon: 'remove', color: colors.textMuted, label: 'Ổn định' },
-};
+});
 
-const PRIORITY: Record<Priority, { color: string; label: string }> = {
+const priorityLooks = (colors: Colors): Record<Priority, { color: string; label: string }> => ({
   high: { color: colors.danger, label: 'Ưu tiên cao' },
   medium: { color: colors.expense, label: 'Ưu tiên vừa' },
   low: { color: colors.primary, label: 'Ưu tiên thấp' },
-};
+});
 
 export default function AdviceScreen() {
+  const styles = useStyles();
+  const colors = useColors();
   const router = useRouter();
   // Lời khuyên của tháng hiện tại (giờ máy); ngân sách bên dưới có nút chọn tháng riêng
   const [month] = useState(() => toMonthKey(new Date()));
@@ -164,7 +166,7 @@ export default function AdviceScreen() {
           <View style={styles.card}>
             <Text style={styles.cardLabel}>Xu hướng</Text>
             {insights.trends.map((t, i) => {
-              const look = TREND[t.direction];
+              const look = trendLooks(colors)[t.direction];
               return (
                 <View key={`${i}-${t.title}`} style={styles.item} accessibilityLabel={`${look.label}: ${t.title}. ${t.detail}`}>
                   <View style={[styles.trendIcon, { backgroundColor: `${look.color}1A` }]}>
@@ -184,7 +186,7 @@ export default function AdviceScreen() {
           <View style={styles.card}>
             <Text style={styles.cardLabel}>Gợi ý hành động</Text>
             {insights.advice.map((a, i) => {
-              const look = PRIORITY[a.priority];
+              const look = priorityLooks(colors)[a.priority];
               return (
                 <View key={`${i}-${a.title}`} style={styles.item} accessibilityLabel={`${look.label}: ${a.title}. ${a.detail}`}>
                   <View style={[styles.actionNumber, { backgroundColor: look.color }]}>
@@ -297,7 +299,7 @@ export default function AdviceScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   safe: { flex: 1, backgroundColor: colors.screen },
   flex: { flex: 1 },
   content: { flexGrow: 1, paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.xl },
@@ -353,4 +355,4 @@ const styles = StyleSheet.create({
   note: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md, paddingHorizontal: spacing.xs },
   noteDot: { marginTop: 6 },
   noteText: { flex: 1, fontSize: 13, lineHeight: 19, color: colors.textMuted },
-});
+}));

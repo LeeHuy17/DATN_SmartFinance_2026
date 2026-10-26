@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Platform, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { Platform, Pressable, Switch, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { BottomSheet } from '@/components/BottomSheet';
@@ -13,10 +13,8 @@ import * as walletsApi from '@/features/wallets/walletsApi';
 import { WALLET_TYPES } from '@/features/wallets/walletTypes';
 import { ApiError, apiDetail, getFieldErrors } from '@/lib/api/client';
 import { confirm } from '@/lib/confirm';
-import { colors, spacing } from '@/theme';
+import { makeStyles, spacing, useColors } from '@/theme';
 
-// react-native-web tô núm công tắc theo activeThumbColor (prop riêng của web), thiếu thì ra màu xanh ngọc
-const webSwitchProps = Platform.OS === 'web' ? { activeThumbColor: colors.onPrimary } : {};
 
 type Props = {
   visible: boolean;
@@ -31,6 +29,10 @@ type Errors = { name?: string; initialBalance?: string; form?: string };
 
 /** Bảng thêm / sửa ví: tên (không trùng), loại ví, số dư ban đầu, có tính vào tổng tài sản không */
 export function WalletSheet({ visible, wallet, onClose, onSaved }: Props) {
+  const styles = useStyles();
+  const colors = useColors();
+  // react-native-web tô núm công tắc theo activeThumbColor (prop riêng của web), thiếu thì ra màu xanh ngọc
+  const webSwitchProps = Platform.OS === 'web' ? { activeThumbColor: colors.onPrimary } : {};
   const editing = !!wallet;
   const [name, setName] = useState('');
   const [type, setType] = useState<WalletType>('cash');
@@ -228,7 +230,7 @@ export function WalletSheet({ visible, wallet, onClose, onSaved }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   flex: { flex: 1 },
   section: { marginTop: spacing.md, marginBottom: spacing.sm, fontSize: 13, fontWeight: '600', color: colors.text },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
@@ -240,4 +242,4 @@ const styles = StyleSheet.create({
   archiveText: { fontSize: 14, fontWeight: '600', color: colors.textMuted },
   deleteText: { color: colors.danger },
   archiveHint: { marginTop: spacing.xs, fontSize: 12, lineHeight: 17, color: colors.textMuted },
-});
+}));

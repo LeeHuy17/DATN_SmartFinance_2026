@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { colors, radius, spacing } from '@/theme';
+import { makeStyles, radius, spacing } from '@/theme';
 
 type Props = {
   value: string;
@@ -16,6 +16,7 @@ type Props = {
  * nên dán mã hoặc tự điền mã từ SMS vẫn hoạt động.
  */
 export function OtpInput({ value, onChange, length, error = false, autoFocus }: Props) {
+  const styles = useStyles();
   const inputRef = useRef<TextInput>(null);
   const [focused, setFocused] = useState(false);
   const activeIndex = focused ? Math.min(value.length, length - 1) : -1;
@@ -58,7 +59,7 @@ export function OtpInput({ value, onChange, length, error = false, autoFocus }: 
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   row: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg },
   cell: {
     flex: 1,
@@ -87,4 +88,4 @@ const styles = StyleSheet.create({
     opacity: 0,
     color: 'transparent',
   },
-});
+}));

@@ -1,8 +1,8 @@
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
 
 import type { Wallet, WalletType } from '@/features/transactions/types';
 import { formatBalance } from '@/lib/format';
-import { colors, radius, spacing } from '@/theme';
+import { makeStyles, radius, spacing, useColors, type Colors } from '@/theme';
 
 const TYPE_LABEL: Record<WalletType, string> = {
   cash: 'Số dư',
@@ -13,15 +13,17 @@ const TYPE_LABEL: Record<WalletType, string> = {
 };
 
 // Tiền mặt, tiết kiệm: thẻ trắng viền mảnh; các loại còn lại: thẻ màu, chữ trắng
-const TYPE_STYLE: Record<WalletType, { bg: string; fg: string; border?: string }> = {
+const typeStyles = (colors: Colors): Record<WalletType, { bg: string; fg: string; border?: string }> => ({
   cash: { bg: colors.background, fg: colors.text, border: colors.divider },
   bank: { bg: colors.walletBank, fg: colors.onPrimary },
   ewallet: { bg: colors.walletEwallet, fg: colors.onPrimary },
-  credit: { bg: colors.text, fg: colors.onPrimary },
+  credit: { bg: colors.inverseSurface, fg: colors.onInverseSurface },
   savings: { bg: colors.primarySoft, fg: colors.primary, border: colors.primarySoft },
-};
+});
 
 export function WalletList({ wallets }: { wallets: Wallet[] }) {
+  const styles = useStyles();
+  const colors = useColors();
   if (wallets.length === 0) {
     return <Text style={styles.empty}>Chưa có ví nào. Bấm "Quản lý" để thêm ví đầu tiên.</Text>;
   }
@@ -35,7 +37,7 @@ export function WalletList({ wallets }: { wallets: Wallet[] }) {
       contentContainerStyle={styles.content}
     >
       {wallets.map((wallet) => {
-        const look = TYPE_STYLE[wallet.type];
+        const look = typeStyles(colors)[wallet.type];
         return (
           <View
             key={wallet.id}
@@ -65,7 +67,7 @@ export function WalletList({ wallets }: { wallets: Wallet[] }) {
 
 export const WALLET_CARD_WIDTH = 150;
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   scroll: { marginHorizontal: -spacing.lg },
   content: { paddingHorizontal: spacing.lg, gap: spacing.sm + 2 },
   card: {
@@ -79,4 +81,4 @@ const styles = StyleSheet.create({
   type: { fontSize: 13, opacity: 0.85 },
   balance: { fontSize: 18, fontWeight: '800' },
   empty: { fontSize: 14, color: colors.textMuted },
-});
+}));
