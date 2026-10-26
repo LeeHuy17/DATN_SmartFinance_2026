@@ -1,10 +1,10 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 
 import { BottomSheet } from '@/components/BottomSheet';
 import { showToast } from '@/components/Toast';
-import { colors, radius, spacing } from '@/theme';
+import { makeStyles, radius, spacing, useColors } from '@/theme';
 
 type Props = {
   visible: boolean;
@@ -23,6 +23,7 @@ const PICK_OPTIONS: ImagePicker.ImagePickerOptions = {
 
 /** Bảng chọn ảnh đại diện: chụp mới, chọn từ thư viện, xóa ảnh hiện tại */
 export function AvatarSheet({ visible, hasAvatar, onClose, onChange }: Props) {
+  const styles = useStyles();
   const pick = async (source: 'camera' | 'library') => {
     // Đóng bảng trước: iOS không mở được camera/thư viện khi đang có Modal hiển thị
     onClose();
@@ -99,6 +100,8 @@ function Option({
   danger?: boolean;
   onPress: () => void;
 }) {
+  const styles = useStyles();
+  const colors = useColors();
   const fg = danger ? colors.danger : colors.primary;
   return (
     <Pressable
@@ -117,7 +120,7 @@ function Option({
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   option: { flexDirection: 'row', alignItems: 'center', gap: spacing.md - 4, paddingVertical: spacing.sm + 2 },
   pressed: { opacity: 0.6 },
   icon: { width: 40, height: 40, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
@@ -135,4 +138,4 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   cancelText: { fontSize: 15, fontWeight: '700', color: colors.text },
-});
+}));

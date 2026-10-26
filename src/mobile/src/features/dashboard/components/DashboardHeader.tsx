@@ -1,8 +1,8 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { Avatar } from '@/features/profile/components/Avatar';
-import { colors, spacing } from '@/theme';
+import { makeStyles, spacing, useColors } from '@/theme';
 
 function greeting(hour = new Date().getHours()) {
   if (hour < 11) return 'Chào buổi sáng';
@@ -27,6 +27,8 @@ export function DashboardHeader({
   onPressProfile,
   onPressNotifications,
 }: Props) {
+  const styles = useStyles();
+  const colors = useColors();
   return (
     <View style={styles.row}>
       <Pressable
@@ -65,7 +67,7 @@ export function DashboardHeader({
 
 const SIZE = 44;
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   profile: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.md - 4 },
   texts: { flex: 1 },
@@ -96,4 +98,4 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   badgeText: { fontSize: 10, fontWeight: '700', color: colors.onPrimary },
-});
+}));

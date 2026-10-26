@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -10,7 +10,7 @@ import { DonutChart } from '@/features/reports/components/DonutChart';
 import { SpendingBars } from '@/features/reports/components/SpendingBars';
 import { getReport } from '@/features/reports/reportsApi';
 import { formatDayMonth, formatShortVnd, formatVnd } from '@/lib/format';
-import { colors, radius, spacing } from '@/theme';
+import { makeStyles, radius, spacing, useColors, type Colors } from '@/theme';
 
 const PERIOD_OPTIONS: { value: Period; label: string }[] = [
   { value: 'week', label: 'Tuần' },
@@ -24,7 +24,9 @@ const BAR_TITLE: Record<Period, string> = {
   year: 'Chi tiêu theo tháng',
 };
 
-const KIND_OPTIONS: { value: ReportKind; label: string; selectedColor: string; selectedBackground: string }[] = [
+const kindOptions = (
+  colors: Colors,
+): { value: ReportKind; label: string; selectedColor: string; selectedBackground: string }[] => [
   { value: 'expense', label: 'Chi', selectedColor: colors.danger, selectedBackground: colors.dangerSoft },
   { value: 'income', label: 'Thu', selectedColor: colors.primary, selectedBackground: colors.primarySoft },
 ];
@@ -47,12 +49,14 @@ function changeText(percent: number | null) {
 }
 
 /** Chi tăng là xấu (đỏ), thu tăng là tốt (xanh) */
-function changeColor(percent: number | null, goodWhenUp: boolean) {
+function changeColor(colors: Colors, percent: number | null, goodWhenUp: boolean) {
   if (!percent) return colors.textMuted;
   return percent > 0 === goodWhenUp ? colors.primary : colors.danger;
 }
 
 export default function ReportsScreen() {
+  const styles = useStyles();
+  const colors = useColors();
   const [period, setPeriod] = useState<Period>('month');
   // 0 = kỳ hiện tại, -1 = kỳ trước...; không cho xem kỳ sau kỳ hiện tại
   const [offset, setOffset] = useState(0);
@@ -149,7 +153,7 @@ export default function ReportsScreen() {
                   {formatVnd(report.totalIncome)}
                 </Text>
                 {report.change && (
-                  <Text style={[styles.change, { color: changeColor(report.change.income, true) }]}>
+                  <Text style={[styles.change, { color: changeColor(colors, report.change.income, true) }]}>
                     {changeText(report.change.income)} so với T{Number(report.change.previousMonth.slice(5))}
                   </Text>
                 )}
@@ -160,7 +164,7 @@ export default function ReportsScreen() {
                   {formatVnd(report.totalExpense)}
                 </Text>
                 {report.change && (
-                  <Text style={[styles.change, { color: changeColor(report.change.expense, false) }]}>
+                  <Text style={[styles.change, { color: changeColor(colors, report.change.expense, false) }]}>
                     {changeText(report.change.expense)} so với T{Number(report.change.previousMonth.slice(5))}
                   </Text>
                 )}
@@ -171,7 +175,7 @@ export default function ReportsScreen() {
               <View style={styles.cardHeader}>
                 <Text style={styles.cardTitle}>{isExpense ? 'Chi tiêu' : 'Thu nhập'} theo danh mục</Text>
                 <View style={styles.kindSwitch}>
-                  <SegmentedControl options={KIND_OPTIONS} value={kind} onChange={changeKind} />
+                  <SegmentedControl options={kindOptions(colors)} value={kind} onChange={changeKind} />
                 </View>
               </View>
               <View style={styles.donutRow}>
@@ -231,7 +235,7 @@ export default function ReportsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   safe: { flex: 1, backgroundColor: colors.screen },
   content: { paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.xl },
   title: { fontSize: 26, fontWeight: '800', color: colors.text },
@@ -281,4 +285,4 @@ const styles = StyleSheet.create({
   legendAmount: { width: 64, textAlign: 'right', fontSize: 14, color: colors.textMuted },
   legendPercent: { width: 48, textAlign: 'right', fontSize: 15, fontWeight: '700', color: colors.text },
   bars: { marginTop: spacing.md },
-});
+}));

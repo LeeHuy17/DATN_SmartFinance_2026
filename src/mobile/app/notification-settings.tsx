@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, ScrollView, Switch, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -8,7 +8,7 @@ import { ScreenHeader } from '@/components/ScreenHeader';
 import { showToast } from '@/components/Toast';
 import { getSettings, getUnreadCount, updateSettings } from '@/features/notifications/notificationsApi';
 import type { NotificationSettings } from '@/features/notifications/notificationsStore';
-import { colors, radius, spacing } from '@/theme';
+import { makeStyles, radius, spacing, useColors } from '@/theme';
 
 type Option = {
   key: keyof NotificationSettings;
@@ -48,10 +48,12 @@ const TYPES: Option[] = [
   { key: 'advice', icon: 'sparkles-outline', title: 'Lời khuyên từ trợ lý AI', text: 'Nhận xét mới về thói quen chi tiêu · Sắp có' },
 ];
 
-// react-native-web tô núm công tắc theo activeThumbColor (prop riêng của web)
-const webSwitchProps = Platform.OS === 'web' ? { activeThumbColor: colors.onPrimary } : {};
 
 export default function NotificationSettingsScreen() {
+  const styles = useStyles();
+  const colors = useColors();
+  // react-native-web tô núm công tắc theo activeThumbColor (prop riêng của web)
+  const webSwitchProps = Platform.OS === 'web' ? { activeThumbColor: colors.onPrimary } : {};
   const router = useRouter();
   const [settings, setSettings] = useState<NotificationSettings | null>(null);
   const [error, setError] = useState(false);
@@ -161,7 +163,7 @@ export default function NotificationSettingsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   loading: { marginTop: spacing.xl },
   errorBox: { marginTop: spacing.xl, alignItems: 'center', gap: spacing.xs },
   retry: { fontSize: 14, fontWeight: '700', color: colors.primary },
@@ -213,4 +215,4 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primarySoft,
   },
   noteText: { flex: 1, fontSize: 13, lineHeight: 19, color: colors.primary },
-});
+}));

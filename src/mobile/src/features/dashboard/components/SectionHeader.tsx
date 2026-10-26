@@ -1,7 +1,7 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import { colors, spacing } from '@/theme';
+import { makeStyles, spacing, useColors } from '@/theme';
 
 type Props = {
   title: string;
@@ -12,6 +12,8 @@ type Props = {
 };
 
 export function SectionHeader({ title, actionLabel, onPressAction, chevron }: Props) {
+  const styles = useStyles();
+  const colors = useColors();
   return (
     <View style={styles.row}>
       <Text style={styles.title}>{title}</Text>
@@ -30,7 +32,7 @@ export function SectionHeader({ title, actionLabel, onPressAction, chevron }: Pr
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   row: {
     marginTop: spacing.lg,
     marginBottom: spacing.md - 4,
@@ -41,4 +43,4 @@ const styles = StyleSheet.create({
   title: { fontSize: 18, fontWeight: '700', color: colors.text },
   actionRow: { flexDirection: 'row', alignItems: 'center', gap: 2 },
   action: { fontSize: 14, fontWeight: '700', color: colors.primary },
-});
+}));

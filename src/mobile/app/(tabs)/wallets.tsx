@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,11 +9,13 @@ import { listCategories, type CategoryWithCount } from '@/features/transactions/
 import type { Wallet } from '@/features/transactions/types';
 import { WalletSheet } from '@/features/wallets/components/WalletSheet';
 import * as walletsApi from '@/features/wallets/walletsApi';
-import { WALLET_ICON, walletTypeLabel } from '@/features/wallets/walletTypes';
+import { walletIcon, walletTypeLabel } from '@/features/wallets/walletTypes';
 import { formatBalance } from '@/lib/format';
-import { colors, radius, spacing } from '@/theme';
+import { makeStyles, radius, spacing, useColors } from '@/theme';
 
 export default function WalletsScreen() {
+  const styles = useStyles();
+  const colors = useColors();
   const router = useRouter();
   const [wallets, setWallets] = useState<Wallet[] | null>(null);
   const [summary, setSummary] = useState<walletsApi.WalletSummary | null>(null);
@@ -50,7 +52,7 @@ export default function WalletsScreen() {
   const archived = wallets?.filter((w) => w.isArchived) ?? [];
 
   const renderWallet = (w: Wallet, i: number, list: Wallet[]) => {
-    const look = WALLET_ICON[w.type];
+    const look = walletIcon(colors)[w.type];
     const meta = [walletTypeLabel(w.type), !w.includeInTotal && !w.isArchived && 'Không tính vào tổng']
       .filter(Boolean)
       .join(' · ');
@@ -192,7 +194,7 @@ export default function WalletsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   safe: { flex: 1, backgroundColor: colors.screen },
   flex: { flex: 1 },
   content: { paddingHorizontal: spacing.lg, paddingTop: spacing.md, paddingBottom: spacing.xl },
@@ -272,4 +274,4 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primarySoft,
   },
   infoText: { flex: 1, fontSize: 13, lineHeight: 19, color: colors.primary },
-});
+}));

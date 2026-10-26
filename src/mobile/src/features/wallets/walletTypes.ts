@@ -1,5 +1,5 @@
 import type { IconName, WalletType } from '@/features/transactions/types';
-import { colors } from '@/theme';
+import type { Colors } from '@/theme';
 
 /** Khớp Wallet.Kind ở backend (wallets/models.py) */
 export const WALLET_TYPES: { value: WalletType; label: string }[] = [
@@ -13,10 +13,10 @@ export const WALLET_TYPES: { value: WalletType; label: string }[] = [
 export const walletTypeLabel = (t: WalletType) => WALLET_TYPES.find((x) => x.value === t)?.label ?? '';
 
 /** Biểu tượng và màu ô vuông của ví trong danh sách */
-export const WALLET_ICON: Record<WalletType, { icon: IconName; bg: string; fg: string }> = {
+export const walletIcon = (colors: Colors): Record<WalletType, { icon: IconName; bg: string; fg: string }> => ({
   cash: { icon: 'wallet-outline', bg: colors.primarySoft, fg: colors.primary },
   bank: { icon: 'business-outline', bg: colors.infoSoft, fg: colors.walletBank },
   ewallet: { icon: 'phone-portrait-outline', bg: colors.warmSoft, fg: colors.warm },
   credit: { icon: 'card-outline', bg: colors.dangerSoft, fg: colors.danger },
   savings: { icon: 'trending-up-outline', bg: colors.primarySoft, fg: colors.primary },
-};
+});

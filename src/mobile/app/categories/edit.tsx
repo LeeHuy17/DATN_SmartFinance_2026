@@ -5,7 +5,6 @@ import {
   Platform,
   Pressable,
   ScrollView,
-  StyleSheet,
   Switch,
   Text,
   View,
@@ -25,15 +24,17 @@ import * as categoriesApi from '@/features/categories/categoriesApi';
 import { getCategory, type CategoryWithCount } from '@/features/transactions/transactionsApi';
 import { ApiError, apiDetail, getFieldErrors } from '@/lib/api/client';
 import type { CategoryKind, IconName } from '@/features/transactions/types';
-import { colors, radius, spacing } from '@/theme';
+import { makeStyles, radius, spacing, useColors } from '@/theme';
 
 const ICON_COLUMNS = 6;
-// react-native-web tô núm công tắc theo activeThumbColor (prop riêng của web), thiếu thì ra màu xanh ngọc
-const webSwitchProps = Platform.OS === 'web' ? { activeThumbColor: colors.onPrimary } : {};
 const MAX_NAME = 30;
 
 /** Thêm danh mục (?kind=expense|income) hoặc sửa danh mục (?id=...) */
 export default function CategoryEditScreen() {
+  const styles = useStyles();
+  const colors = useColors();
+  // react-native-web tô núm công tắc theo activeThumbColor (prop riêng của web), thiếu thì ra màu xanh ngọc
+  const webSwitchProps = Platform.OS === 'web' ? { activeThumbColor: colors.onPrimary } : {};
   const router = useRouter();
   const params = useLocalSearchParams<{ id?: string; kind?: CategoryKind }>();
   const editing = !!params.id;
@@ -274,7 +275,7 @@ export default function CategoryEditScreen() {
 
 const DOT = 30;
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   safe: { flex: 1, backgroundColor: colors.screen },
   flex: { flex: 1 },
   loading: { marginTop: spacing.xl },
@@ -329,4 +330,4 @@ const styles = StyleSheet.create({
   deleteText: { fontSize: 14, fontWeight: '700', color: colors.danger },
   locked: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
   lockedText: { fontSize: 12, color: colors.textMuted, textAlign: 'center' },
-});
+}));

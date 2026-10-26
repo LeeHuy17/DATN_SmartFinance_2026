@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,7 +15,7 @@ import {
   WrongPasswordError,
 } from '@/features/profile/profileStore';
 import { confirm } from '@/lib/confirm';
-import { colors, spacing } from '@/theme';
+import { makeStyles, spacing, useColors } from '@/theme';
 
 /** Điều kiện mật khẩu mới theo thiết kế màn Đổi mật khẩu */
 const rulesFor = (password: string) => [
@@ -25,6 +25,8 @@ const rulesFor = (password: string) => [
 ];
 
 export default function ChangePasswordScreen() {
+  const styles = useStyles();
+  const colors = useColors();
   const router = useRouter();
   const { signOut } = useAuth();
   const [current, setCurrent] = useState('');
@@ -156,7 +158,7 @@ export default function ChangePasswordScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   safe: { flex: 1, backgroundColor: colors.background },
   flex: { flex: 1 },
   content: { paddingHorizontal: spacing.lg, paddingBottom: spacing.lg },
@@ -174,4 +176,4 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.divider,
   },
-});
+}));

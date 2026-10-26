@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -7,11 +7,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { ScreenHeader } from '@/components/ScreenHeader';
 import { SegmentedControl } from '@/components/SegmentedControl';
-import { KIND_OPTIONS } from '@/features/transactions/categories';
+import { kindOptions } from '@/features/transactions/categories';
 import { CategoryIcon } from '@/features/transactions/components/CategoryIcon';
 import { listCategories, type CategoryWithCount } from '@/features/transactions/transactionsApi';
 import type { CategoryKind } from '@/features/transactions/types';
-import { colors, radius, spacing } from '@/theme';
+import { makeStyles, radius, spacing, useColors } from '@/theme';
 
 function subtitle(c: CategoryWithCount) {
   const count = c.transactionCount > 0 ? `${c.transactionCount} giao dịch` : 'Chưa có giao dịch';
@@ -19,6 +19,8 @@ function subtitle(c: CategoryWithCount) {
 }
 
 export default function CategoryManagerScreen() {
+  const styles = useStyles();
+  const colors = useColors();
   const router = useRouter();
   // Mở từ màn Thêm giao dịch thì đi kèm loại đang chọn
   const params = useLocalSearchParams<{ kind?: CategoryKind }>();
@@ -48,7 +50,7 @@ export default function CategoryManagerScreen() {
       <ScreenHeader title="Quản lý danh mục" />
 
       <ScrollView contentContainerStyle={styles.content}>
-        <SegmentedControl options={KIND_OPTIONS} value={kind} onChange={changeKind} />
+        <SegmentedControl options={kindOptions(colors)} value={kind} onChange={changeKind} />
         <Text style={styles.hint}>
           Chạm vào danh mục để đổi tên, màu, biểu tượng hoặc ẩn/hiện.
         </Text>
@@ -98,7 +100,7 @@ export default function CategoryManagerScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   state: { marginTop: spacing.lg, alignItems: 'center' },
   stateText: { marginTop: spacing.lg, fontSize: 14, lineHeight: 20, color: colors.textMuted, textAlign: 'center' },
   retry: { marginTop: spacing.md, alignSelf: 'stretch' },
@@ -120,4 +122,4 @@ const styles = StyleSheet.create({
   nameHidden: { color: colors.textMuted },
   meta: { marginTop: 2, fontSize: 12, color: colors.textMuted },
   footer: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.md },
-});
+}));

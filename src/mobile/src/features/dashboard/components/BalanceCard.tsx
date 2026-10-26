@@ -1,7 +1,7 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 
 import { formatBalance, formatVnd } from '@/lib/format';
-import { colors, radius, spacing } from '@/theme';
+import { makeStyles, radius, spacing } from '@/theme';
 
 type Props = {
   totalBalance: number;
@@ -12,6 +12,7 @@ type Props = {
 };
 
 export function BalanceCard({ totalBalance, walletCount, month, monthIncome, monthExpense }: Props) {
+  const styles = useStyles();
   return (
     <View style={styles.card}>
       <Text style={styles.label}>Tổng số dư ({walletCount} ví)</Text>
@@ -37,7 +38,7 @@ export function BalanceCard({ totalBalance, walletCount, month, monthIncome, mon
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   card: {
     marginTop: spacing.lg,
     padding: 20,
@@ -56,4 +57,4 @@ const styles = StyleSheet.create({
   },
   statLabel: { fontSize: 13, color: 'rgba(255,255,255,0.85)' },
   statValue: { marginTop: 2, fontSize: 16, fontWeight: '700', color: colors.onPrimary },
-});
+}));

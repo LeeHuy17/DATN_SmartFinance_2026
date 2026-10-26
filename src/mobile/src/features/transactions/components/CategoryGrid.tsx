@@ -1,8 +1,8 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import type { Category } from '@/features/transactions/types';
-import { colors, radius, spacing } from '@/theme';
+import { makeStyles, radius, spacing, useColors } from '@/theme';
 
 type Props = {
   categories: Category[];
@@ -15,6 +15,8 @@ const COLUMNS = 4;
 
 /** Lưới chọn danh mục, 4 ô mỗi hàng */
 export function CategoryGrid({ categories, value, onChange }: Props) {
+  const styles = useStyles();
+  const colors = useColors();
   const rows: (Category | null)[][] = [];
   for (let i = 0; i < categories.length; i += COLUMNS) {
     const row: (Category | null)[] = categories.slice(i, i + COLUMNS);
@@ -53,7 +55,7 @@ export function CategoryGrid({ categories, value, onChange }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   grid: { gap: spacing.sm },
   row: { flexDirection: 'row', gap: spacing.sm },
   spacer: { flex: 1 },
@@ -71,4 +73,4 @@ const styles = StyleSheet.create({
   tileSelected: { borderColor: colors.primary, borderWidth: 1.5, backgroundColor: colors.primarySoft },
   label: { fontSize: 12, fontWeight: '500', color: colors.text },
   labelSelected: { fontWeight: '700', color: colors.primary },
-});
+}));

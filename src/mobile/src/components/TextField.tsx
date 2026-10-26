@@ -2,7 +2,6 @@ import { forwardRef, useState, type ReactNode } from 'react';
 import {
   Platform,
   Pressable,
-  StyleSheet,
   Text,
   TextInput,
   View,
@@ -12,7 +11,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 
 import { FieldError } from '@/components/FieldError';
-import { colors, radius, spacing } from '@/theme';
+import { makeStyles, radius, spacing, useColors } from '@/theme';
 
 type Props = TextInputProps & {
   label: string;
@@ -30,6 +29,8 @@ export const TextField = forwardRef<TextInput, Props>(function TextField(
   { label, error, hint, passwordToggle, labelAccessory, secureTextEntry, style, onFocus, onBlur, ...inputProps },
   ref,
 ) {
+  const styles = useStyles();
+  const colors = useColors();
   const [focused, setFocused] = useState(false);
   const [revealed, setRevealed] = useState(false);
 
@@ -93,7 +94,7 @@ const webNoOutline = Platform.select({
   default: {},
 });
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   field: { marginTop: spacing.md },
   labelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.sm },
   label: {
@@ -128,4 +129,4 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     color: colors.textMuted,
   },
-});
+}));

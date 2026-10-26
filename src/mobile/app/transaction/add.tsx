@@ -5,7 +5,6 @@ import {
   Platform,
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   View,
 } from 'react-native';
@@ -19,7 +18,7 @@ import { PrimaryButton } from '@/components/PrimaryButton';
 import { SegmentedControl } from '@/components/SegmentedControl';
 import { TextField } from '@/components/TextField';
 import { takeOcrDraft, type OcrDraft } from '@/features/ocr/pendingReceipt';
-import { KIND_OPTIONS } from '@/features/transactions/categories';
+import { kindOptions } from '@/features/transactions/categories';
 import { AmountInput } from '@/features/transactions/components/AmountInput';
 import { CategoryGrid } from '@/features/transactions/components/CategoryGrid';
 import { parseDayInput } from '@/features/transactions/filters';
@@ -40,12 +39,14 @@ import type {
 import { getFieldErrors } from '@/lib/api/client';
 import { toYmd } from '@/lib/date';
 import { formatFullDate, maskDayInput } from '@/lib/format';
-import { colors, radius, spacing } from '@/theme';
+import { makeStyles, radius, spacing, useColors } from '@/theme';
 
 type Kind = CategoryKind;
 type Errors = { amount?: string; category?: string; date?: string; form?: string };
 
 export default function AddTransactionScreen() {
+  const styles = useStyles();
+  const colors = useColors();
   const router = useRouter();
   // Có id = sửa giao dịch (mở từ nút "Sửa" trong khung xem nhanh)
   const { id } = useLocalSearchParams<{ id?: string }>();
@@ -195,7 +196,7 @@ export default function AddTransactionScreen() {
             </Text>
           </View>
         )}
-        <SegmentedControl options={KIND_OPTIONS} value={kind} onChange={changeKind} />
+        <SegmentedControl options={kindOptions(colors)} value={kind} onChange={changeKind} />
 
         <View style={styles.amount}>
           <AmountInput
@@ -303,7 +304,7 @@ export default function AddTransactionScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   safe: { flex: 1, backgroundColor: colors.screen },
   flex: { flex: 1 },
   header: {
@@ -342,4 +343,4 @@ const styles = StyleSheet.create({
   },
   ocrIcon: { marginTop: 1 },
   ocrText: { flex: 1, fontSize: 13, lineHeight: 19, color: colors.primary },
-});
+}));

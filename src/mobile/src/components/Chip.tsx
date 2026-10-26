@@ -1,7 +1,7 @@
-import { Pressable, StyleSheet, Text } from 'react-native';
+import { Pressable, Text } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import { colors, spacing } from '@/theme';
+import { makeStyles, spacing, useColors } from '@/theme';
 
 type Props = {
   label: string;
@@ -18,6 +18,8 @@ type Props = {
 };
 
 export function Chip({ label, selected, onPress, icon, variant = 'soft', showCheck = true }: Props) {
+  const styles = useStyles();
+  const colors = useColors();
   const solid = variant === 'solid';
   const fg = selected ? (solid ? colors.onPrimary : colors.primary) : colors.text;
 
@@ -38,7 +40,7 @@ export function Chip({ label, selected, onPress, icon, variant = 'soft', showChe
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -54,4 +56,4 @@ const styles = StyleSheet.create({
   softSelected: { backgroundColor: colors.primarySoft, borderColor: colors.primary },
   label: { fontSize: 14, fontWeight: '500' },
   labelSelected: { fontWeight: '700' },
-});
+}));

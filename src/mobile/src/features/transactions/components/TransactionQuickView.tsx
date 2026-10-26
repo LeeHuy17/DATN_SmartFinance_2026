@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Modal, Pressable, Text, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
-import { softColor } from '@/features/transactions/categories';
+import { categoryTint } from '@/features/transactions/categories';
 import type { Transaction } from '@/features/transactions/types';
 import { formatFullDate, formatSignedVnd } from '@/lib/format';
-import { colors, radius, spacing } from '@/theme';
+import { makeStyles, radius, spacing, useTheme } from '@/theme';
 
 type Props = {
   /** null = đóng */
@@ -18,6 +18,8 @@ type Props = {
 
 /** Khung xem nhanh một giao dịch, kèm nút Sửa / Xóa */
 export function TransactionQuickView({ transaction, onClose, onEdit, onDelete }: Props) {
+  const styles = useStyles();
+  const { colors, isDark } = useTheme();
   const [deleting, setDeleting] = useState(false);
   // Giữ nội dung trong lúc khung đang đóng (animation fade) để không bị trống
   const [shown, setShown] = useState<Transaction | null>(null);
@@ -41,8 +43,8 @@ export function TransactionQuickView({ transaction, onClose, onEdit, onDelete }:
           // Chạm bên trong khung không đóng khung
           <Pressable style={styles.card} onPress={() => {}} accessibilityViewIsModal>
             <View style={styles.top}>
-              <View style={[styles.icon, { backgroundColor: softColor(t.category.color) }]}>
-                <Ionicons name={t.category.icon} size={22} color={t.category.color} />
+              <View style={[styles.icon, { backgroundColor: categoryTint(t.category.color, isDark).bg }]}>
+                <Ionicons name={t.category.icon} size={22} color={categoryTint(t.category.color, isDark).fg} />
               </View>
               <Pressable onPress={onClose} hitSlop={10} accessibilityRole="button" accessibilityLabel="Đóng">
                 <Ionicons name="close" size={22} color={colors.textMuted} />
@@ -106,6 +108,7 @@ export function TransactionQuickView({ transaction, onClose, onEdit, onDelete }:
 }
 
 function Row({ label, value }: { label: string; value: string }) {
+  const styles = useStyles();
   return (
     <View style={styles.row}>
       <Text style={styles.rowLabel}>{label}</Text>
@@ -116,7 +119,7 @@ function Row({ label, value }: { label: string; value: string }) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   overlay: {
     flex: 1,
     backgroundColor: colors.overlay,
@@ -179,4 +182,4 @@ const styles = StyleSheet.create({
   editText: { fontSize: 15, fontWeight: '700', color: colors.text },
   deleteButton: { backgroundColor: colors.dangerSoft },
   deleteText: { fontSize: 15, fontWeight: '700', color: colors.danger },
-});
+}));
