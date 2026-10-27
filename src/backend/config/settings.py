@@ -2,6 +2,9 @@ import os
 from datetime import timedelta
 from pathlib import Path
 
+from django.templatetags.static import static
+from django.urls import reverse_lazy
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = os.environ["DJANGO_SECRET_KEY"]
@@ -9,6 +12,9 @@ DEBUG = os.environ.get("DJANGO_DEBUG", "0") == "1"
 ALLOWED_HOSTS = [h for h in os.environ.get("DJANGO_ALLOWED_HOSTS", "").split(",") if h]
 
 INSTALLED_APPS = [
+    # Giao diện admin, phải đặt trước django.contrib.admin để ghi đè template
+    "unfold",
+    "unfold.contrib.filters",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -49,7 +55,7 @@ ROOT_URLCONF = "config.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        "DIRS": [BASE_DIR / "templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -112,6 +118,7 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+STATICFILES_DIRS = [BASE_DIR / "static"]
 
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
@@ -139,3 +146,114 @@ DEFAULT_FROM_EMAIL = os.environ.get(
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
 GROQ_MODEL = os.environ.get("GROQ_MODEL", "openai/gpt-oss-120b")
 GROQ_TIMEOUT = int(os.environ.get("GROQ_TIMEOUT", "30"))
+
+# Giao diện trang admin (django-unfold)
+UNFOLD = {
+    "SITE_TITLE": "Smart Finance Admin",
+    "SITE_HEADER": "Smart Finance",
+    "SITE_SUBHEADER": "Trang quản trị",
+    "SITE_SYMBOL": "account_balance_wallet",  # tên icon Material Symbols
+    "SITE_URL": None,  # backend chỉ có API, không có trang chủ để quay về
+    "SHOW_VIEW_ON_SITE": False,
+    "DASHBOARD_CALLBACK": "config.admin_dashboard.dashboard_callback",
+    "STYLES": [lambda request: static("admin/smartfinance.css")],
+    "COLORS": {
+        # Cùng tông xanh với app mobile: 600 là primary (#0F6B4F), 500 là primary chế độ tối (#1F9A6F)
+        "primary": {
+            "50": "oklch(97.6% .015 166)",
+            "100": "oklch(93.6% .03 166)",
+            "200": "oklch(88% .055 166)",
+            "300": "oklch(80% .09 165)",
+            "400": "oklch(70% .12 164)",
+            "500": "oklch(61.1% .123 163.7)",
+            "600": "oklch(47% .093 166.3)",
+            "700": "oklch(41% .082 166)",
+            "800": "oklch(36% .07 167)",
+            "900": "oklch(31% .056 168)",
+            "950": "oklch(24% .042 168)",
+        },
+    },
+    "SIDEBAR": {
+        "show_search": True,
+        "show_all_applications": True,
+        "navigation": [
+            {
+                "items": [
+                    {"title": "Tổng quan", "icon": "dashboard", "link": reverse_lazy("admin:index")},
+                ],
+            },
+            {
+                "title": "Người dùng",
+                "separator": True,
+                "items": [
+                    {
+                        "title": "Tài khoản",
+                        "icon": "person",
+                        "link": reverse_lazy("admin:accounts_user_changelist"),
+                        "permission": lambda request: request.user.has_perm("accounts.view_user"),
+                    },
+                    {
+                        "title": "Nhóm quyền",
+                        "icon": "group",
+                        "link": reverse_lazy("admin:auth_group_changelist"),
+                        "permission": lambda request: request.user.has_perm("auth.view_group"),
+                    },
+                ],
+            },
+            {
+                "title": "Tài chính",
+                "separator": True,
+                "items": [
+                    {
+                        "title": "Giao dịch",
+                        "icon": "receipt_long",
+                        "link": reverse_lazy("admin:transactions_transaction_changelist"),
+                        "permission": lambda request: request.user.has_perm("transactions.view_transaction"),
+                    },
+                    {
+                        "title": "Ví",
+                        "icon": "account_balance_wallet",
+                        "link": reverse_lazy("admin:wallets_wallet_changelist"),
+                        "permission": lambda request: request.user.has_perm("wallets.view_wallet"),
+                    },
+                    {
+                        "title": "Danh mục",
+                        "icon": "category",
+                        "link": reverse_lazy("admin:categories_category_changelist"),
+                        "permission": lambda request: request.user.has_perm("categories.view_category"),
+                    },
+                    {
+                        "title": "Ngân sách",
+                        "icon": "savings",
+                        "link": reverse_lazy("admin:budgets_budget_changelist"),
+                        "permission": lambda request: request.user.has_perm("budgets.view_budget"),
+                    },
+                ],
+            },
+            {
+                "title": "Thông báo & trợ lý AI",
+                "separator": True,
+                "items": [
+                    {
+                        "title": "Thông báo",
+                        "icon": "notifications",
+                        "link": reverse_lazy("admin:notifications_notification_changelist"),
+                        "permission": lambda request: request.user.has_perm("notifications.view_notification"),
+                    },
+                    {
+                        "title": "Cài đặt thông báo",
+                        "icon": "tune",
+                        "link": reverse_lazy("admin:notifications_notificationsetting_changelist"),
+                        "permission": lambda request: request.user.has_perm("notifications.view_notificationsetting"),
+                    },
+                    {
+                        "title": "Báo cáo AI",
+                        "icon": "smart_toy",
+                        "link": reverse_lazy("admin:advisor_advisorreport_changelist"),
+                        "permission": lambda request: request.user.has_perm("advisor.view_advisorreport"),
+                    },
+                ],
+            },
+        ],
+    },
+}

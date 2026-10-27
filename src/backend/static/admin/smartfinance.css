@@ -1,0 +1,85 @@
+/* Màu thu/chi giống app mobile. Bố cục trang Tổng quan admin. CSS dựng sẵn của Unfold không có class responsive như lg:grid-cols-4 */
+
+:root {
+  --sf-income: #0F6B4F;
+  --sf-expense: #B45309;
+}
+
+.dark {
+  --sf-income: #1F9A6F;
+  --sf-expense: #F0A65A;
+}
+
+.sf-dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.sf-kpis {
+  display: grid;
+  gap: 24px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.sf-columns {
+  display: grid;
+  gap: 24px;
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 1024px) {
+  .sf-columns {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.sf-kpi-value {
+  font-variant-numeric: tabular-nums;
+  margin-top: 4px;
+  white-space: nowrap;
+}
+
+.sf-kpi-icon {
+  color: var(--color-primary-600);
+  font-size: 36px;
+}
+
+.dark .sf-kpi-icon {
+  color: var(--color-primary-400);
+}
+
+.sf-up {
+  color: var(--color-primary-600);
+}
+
+.sf-down {
+  color: var(--sf-expense);
+}
+
+.dark .sf-up {
+  color: var(--color-primary-400);
+}
+
+.sf-legend {
+  align-items: center;
+  display: flex;
+  font-size: 13px;
+  gap: 16px;
+}
+
+.sf-dot {
+  border-radius: 9999px;
+  display: inline-block;
+  height: 8px;
+  margin-right: 6px;
+  width: 8px;
+}
+
+.sf-dot-income {
+  background: var(--sf-income);
+}
+
+.sf-dot-expense {
+  background: var(--sf-expense);
+}
