@@ -1,9 +1,10 @@
 from django.contrib import admin
+from unfold.admin import ModelAdmin, TabularInline
 
 from .models import Budget, BudgetAmount
 
 
-class BudgetAmountInline(admin.TabularInline):
+class BudgetAmountInline(TabularInline):
     """Lịch sử hạn mức: mỗi dòng áp dụng từ tháng đó trở đi"""
 
     model = BudgetAmount
@@ -14,7 +15,7 @@ class BudgetAmountInline(admin.TabularInline):
 
 
 @admin.register(Budget)
-class BudgetAdmin(admin.ModelAdmin):
+class BudgetAdmin(ModelAdmin):
     list_display = ("user", "category", "alert_threshold", "is_active", "created_at")
     list_filter = ("is_active",)
     search_fields = ("user__email",)
