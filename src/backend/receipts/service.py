@@ -55,7 +55,7 @@ def scan(user, upload):
     lines = read_lines(gray)  # OCRUnavailable nếu EasyOCR không chạy được
     if not lines:
         raise NoTextFound
-    texts = [l["text"] for l in lines]
+    texts = [line["text"] for line in lines]
     parsed = parse_receipt(texts, timezone.localdate(), meta=lines)
     # Bỏ dòng địa chỉ khi đoán danh mục: "Thành phố" không được khớp "phở"
     keywords = [t for t in texts[:30] if not ADDRESS_RE.search(fold(t))]
@@ -68,7 +68,7 @@ def scan(user, upload):
         total_confidence=parsed["total_confidence"],
         receipt_date=parsed["date"],
         suggested_category=suggest_category(user, keywords),
-        confidence=sum(l["conf"] for l in lines) / len(lines),
+        confidence=sum(line["conf"] for line in lines) / len(lines),
     )
     receipt.image.save("receipt.jpg", ContentFile(stored), save=False)
     receipt.save()

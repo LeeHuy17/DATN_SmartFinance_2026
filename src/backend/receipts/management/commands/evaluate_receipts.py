@@ -28,7 +28,7 @@ class Command(BaseCommand):
             with open(base / row["file"], "rb") as f:
                 _, gray = prepare(File(f))
             lines = read_lines(gray)
-            parsed = parse_receipt([l["text"] for l in lines], timezone.localdate(), meta=lines)
+            parsed = parse_receipt([line["text"] for line in lines], timezone.localdate(), meta=lines)
             times.append(time.time() - started)
             ok = {
                 "total": str(parsed["total"] or "").split(".")[0] == row["total"],

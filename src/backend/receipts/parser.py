@@ -141,8 +141,8 @@ def extract_total(lines):
         return common, 0.7 if n >= 2 else 0.55
 
     # Không có từ khóa: lấy số lớn nhất ở 60% dưới của hóa đơn, độ tin cậy thấp
-    pool = [v for l in lines[int(len(lines) * 0.4):]
-            if not any(k in fold(l) for k in EXCLUDE) for v in amounts_in(l)]
+    pool = [v for line in lines[int(len(lines) * 0.4):]
+            if not any(k in fold(line) for k in EXCLUDE) for v in amounts_in(line)]
     return (max(pool), 0.4) if pool else (None, 0.0)
 
 

@@ -129,4 +129,4 @@ class ParserTests(SimpleTestCase):
 
         lines = group_lines([box("58.000", 300, 102), box("Cà phê", 10, 100),
                              box("Tổng cộng", 10, 160)])
-        self.assertEqual([l["text"] for l in lines], ["Cà phê 58.000", "Tổng cộng"])
+        self.assertEqual([line["text"] for line in lines], ["Cà phê 58.000", "Tổng cộng"])
