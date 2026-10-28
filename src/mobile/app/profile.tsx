@@ -5,6 +5,7 @@ import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 import { ConfirmDialog } from '@/components/ConfirmDialog';
+import { APP_VERSION } from '@/features/about/appInfo';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { showToast } from '@/components/Toast';
 import { useAuth } from '@/features/auth/AuthProvider';
@@ -13,8 +14,6 @@ import { Avatar } from '@/features/profile/components/Avatar';
 import { AvatarSheet } from '@/features/profile/components/AvatarSheet';
 import { avatarErrorMessage, getProfile, getProfileNow, updateProfile, type Profile } from '@/features/profile/profileStore';
 import { makeStyles, radius, spacing, useColors, useTheme } from '@/theme';
-
-const APP_VERSION = 'v1.0.0';
 
 export default function ProfileScreen() {
   const styles = useStyles();
@@ -127,10 +126,20 @@ export default function ProfileScreen() {
         </Section>
 
         <Section title="HỖ TRỢ VÀ PHÁP LÝ">
-          {/* TODO: gắn trang Trung tâm trợ giúp / Điều khoản khi có nội dung */}
-          <Row icon="help-circle-outline" label="Trung tâm trợ giúp" />
-          <Row icon="document-text-outline" label="Điều khoản và chính sách" />
-          <Row icon="information-circle-outline" label="Giới thiệu ứng dụng" value={APP_VERSION} last />
+          <Row icon="help-circle-outline" label="Trung tâm trợ giúp" onPress={() => router.push('/help')} />
+          <Row icon="document-text-outline" label="Điều khoản sử dụng" onPress={() => router.push('/legal/terms')} />
+          <Row
+            icon="shield-checkmark-outline"
+            label="Chính sách quyền riêng tư"
+            onPress={() => router.push('/legal/privacy')}
+          />
+          <Row
+            icon="information-circle-outline"
+            label="Giới thiệu ứng dụng"
+            value={APP_VERSION}
+            onPress={() => router.push('/about')}
+            last
+          />
         </Section>
 
         <Pressable
@@ -152,7 +161,7 @@ export default function ProfileScreen() {
       <ConfirmDialog
         visible={confirmSignOut}
         icon="log-out-outline"
-        title="Đăng xuất khỏi Smart Finance?"
+        title="Đăng xuất khỏi FinBuddy?"
         message="Dữ liệu của bạn vẫn được lưu an toàn. Bạn cần đăng nhập lại để tiếp tục sử dụng."
         confirmText="Đăng xuất"
         destructive

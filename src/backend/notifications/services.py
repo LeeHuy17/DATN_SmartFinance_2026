@@ -174,7 +174,7 @@ def _send_digest_email(user, start, cur, old, top):
     lines = [
         f"Xin chào {name},",
         "",
-        f"Tổng kết chi tiêu tháng {label} trên Smart Finance:",
+        f"Tổng kết chi tiêu tháng {label} trên FinBuddy:",
         f"- Tổng thu: {vnd(cur['income'])}{change(cur['income'], old['income'])}",
         f"- Tổng chi: {vnd(cur['expense'])}{change(cur['expense'], old['expense'])}",
         f"- Chênh lệch: {'-' if cur['net'] < 0 else ''}{vnd(abs(cur['net']))}",
@@ -184,7 +184,7 @@ def _send_digest_email(user, start, cur, old, top):
         lines += [f"- {c['category_name']}: {vnd(c['total'])} ({c['percent']}%)" for c in top]
     lines += ["", "Bạn có thể tắt bản tin này trong Hồ sơ > Thông báo."]
     send_mail(
-        f"[Smart Finance] Tổng kết chi tiêu tháng {label}",
+        f"[FinBuddy] Tổng kết chi tiêu tháng {label}",
         "\n".join(lines),
         settings.DEFAULT_FROM_EMAIL,
         [user.email],

@@ -140,7 +140,7 @@ if EMAIL_HOST_USER:
 else:
     EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 DEFAULT_FROM_EMAIL = os.environ.get(
-    "DEFAULT_FROM_EMAIL", f"Smart Finance <{EMAIL_HOST_USER or 'no-reply@smartfinance.local'}>"
+    "DEFAULT_FROM_EMAIL", f"FinBuddy <{EMAIL_HOST_USER or 'no-reply@finbuddy.local'}>"
 )
 
 # Trợ lý AI (Groq, API tương thích OpenAI). Llama 3.3 70B đã bị Groq gỡ ngày 16/08/2026,
@@ -157,8 +157,8 @@ OCR_PERSPECTIVE = os.environ.get("OCR_PERSPECTIVE", "1") == "1"  # tắt nếu t
 
 # Giao diện trang admin (django-unfold)
 UNFOLD = {
-    "SITE_TITLE": "Smart Finance Admin",
-    "SITE_HEADER": "Smart Finance",
+    "SITE_TITLE": "FinBuddy Admin",
+    "SITE_HEADER": "FinBuddy",
     "SITE_SUBHEADER": "Trang quản trị",
     "SITE_SYMBOL": "account_balance_wallet",  # tên icon Material Symbols
     "SITE_URL": None,  # backend chỉ có API, không có trang chủ để quay về

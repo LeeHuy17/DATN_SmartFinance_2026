@@ -75,7 +75,12 @@ function RootNavigator() {
             <Stack.Screen name="notification-settings" />
             <Stack.Screen name="categories/index" />
             <Stack.Screen name="categories/edit" />
+            <Stack.Screen name="help" />
+            <Stack.Screen name="about" />
           </Stack.Protected>
+
+          {/* Mở được ở cả hai trạng thái: từ màn Đăng ký và từ Hồ sơ */}
+          <Stack.Screen name="legal/[doc]" />
         </Stack>
       )}
 

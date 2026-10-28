@@ -73,7 +73,7 @@ export default function LoginScreen() {
 
           <Text style={styles.title}>Chào mừng trở lại</Text>
           <Text style={styles.subtitle}>
-            Đăng nhập để tiếp tục theo dõi chi tiêu với Smart Finance.
+            Đăng nhập để tiếp tục theo dõi chi tiêu với FinBuddy.
           </Text>
 
           <View style={styles.form}>
