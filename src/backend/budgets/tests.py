@@ -134,7 +134,7 @@ class BudgetCrudTests(BudgetTestBase):
 
 class BudgetSpendingTests(BudgetTestBase):
     def test_spent_and_status_thresholds(self):
-        budget = self._budget("100000", self.food)
+        self._budget("100000", self.food)
         cases = [("79999", "ok"), ("1", "warning"), ("20000", "warning"), ("0.01", "exceeded")]
         total = Decimal("0")
         for amount, expected in cases:
