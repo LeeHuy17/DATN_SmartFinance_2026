@@ -68,7 +68,7 @@ export function InAppBanner() {
         </View>
         <View style={styles.texts}>
           <View style={styles.topRow}>
-            <Text style={styles.app}>Smart Finance</Text>
+            <Text style={styles.app}>FinBuddy</Text>
             <Text style={styles.now}>Bây giờ</Text>
           </View>
           <Text style={styles.title} numberOfLines={1}>

@@ -39,6 +39,7 @@ export default function RegisterScreen() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [error, setError] = useState<string | null>(null);
+  const [agreed, setAgreed] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const emailRef = useRef<TextInputInstance>(null);
   const passwordRef = useRef<TextInputInstance>(null);
@@ -58,7 +59,7 @@ export default function RegisterScreen() {
     setFieldErrors((prev) => (prev[field] ? { ...prev, [field]: undefined } : prev));
 
   const handleRegister = async () => {
-    if (!passwordValid) return;
+    if (!passwordValid || !agreed) return;
     const errors: FieldErrors = {};
     if (!fullName.trim()) errors.fullName = 'Vui lòng nhập họ và tên.';
     if (!EMAIL_REGEX.test(email.trim())) errors.email = 'Email không hợp lệ.';
@@ -174,13 +175,36 @@ export default function RegisterScreen() {
 
           <PasswordChecklist rules={rules} />
 
+          {/* Chạm vào chữ thường để tích, chạm vào tên văn bản để mở đọc */}
+          <Pressable
+            style={styles.consent}
+            onPress={() => setAgreed((v) => !v)}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: agreed }}
+          >
+            <View style={[styles.check, agreed && styles.checkChecked]}>
+              {agreed && <Ionicons name="checkmark" size={15} color={colors.onPrimary} />}
+            </View>
+            <Text style={styles.consentText}>
+              Tôi đã đọc và đồng ý với{' '}
+              <Link href="/legal/terms" style={styles.consentLink}>
+                Điều khoản sử dụng
+              </Link>{' '}
+              và{' '}
+              <Link href="/legal/privacy" style={styles.consentLink}>
+                Chính sách quyền riêng tư
+              </Link>{' '}
+              của FinBuddy.
+            </Text>
+          </Pressable>
+
           {error && <FieldError message={error} />}
 
           <PrimaryButton
             title="Đăng ký"
             onPress={handleRegister}
             loading={submitting}
-            disabled={!passwordValid}
+            disabled={!passwordValid || !agreed}
             style={styles.button}
           />
 
@@ -222,6 +246,20 @@ const useStyles = makeStyles((colors) => ({
   },
   form: { marginTop: spacing.sm },
   button: { marginTop: spacing.lg },
+  consent: { marginTop: spacing.md, flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm + 4 },
+  check: {
+    width: 22,
+    height: 22,
+    marginTop: 1,
+    borderRadius: 6,
+    borderWidth: 1.5,
+    borderColor: colors.textMuted,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkChecked: { borderColor: colors.primary, backgroundColor: colors.primary },
+  consentText: { flex: 1, fontSize: 13, lineHeight: 20, color: colors.textMuted },
+  consentLink: { fontSize: 13, fontWeight: '600', color: colors.primary },
   footer: {
     marginTop: 'auto',
     paddingTop: spacing.xl,

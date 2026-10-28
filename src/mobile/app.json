@@ -1,10 +1,11 @@
 {
   "expo": {
-    "name": "Smart Finance",
-    "slug": "smart-finance",
-    "scheme": "smartfinance",
+    "name": "FinBuddy",
+    "slug": "finbuddy",
+    "scheme": "finbuddy",
     "version": "1.0.0",
     "orientation": "portrait",
+    "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "plugins": [
       "expo-router",
@@ -14,13 +15,13 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Smart Finance cần camera để chụp hóa đơn và đọc số tiền giúp bạn."
+          "cameraPermission": "FinBuddy cần camera để chụp hóa đơn và đọc số tiền giúp bạn."
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "Smart Finance cần truy cập ảnh để bạn chọn ảnh hóa đơn có sẵn."
+          "photosPermission": "FinBuddy cần truy cập ảnh để bạn chọn ảnh hóa đơn có sẵn."
         }
       ],
       [

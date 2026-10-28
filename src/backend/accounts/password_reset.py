@@ -49,10 +49,10 @@ def issue_code(user):
 def send_code_email(user, code):
     minutes = int(CODE_TTL.total_seconds() // 60)
     name = user.full_name or user.email
-    subject = "[Smart Finance] Mã xác thực đặt lại mật khẩu"
+    subject = "[FinBuddy] Mã xác thực đặt lại mật khẩu"
     text = (
         f"Xin chào {name},\n\n"
-        f"Mã xác thực để đặt lại mật khẩu Smart Finance của bạn là: {code}\n\n"
+        f"Mã xác thực để đặt lại mật khẩu FinBuddy của bạn là: {code}\n\n"
         f"Mã có hiệu lực trong {minutes} phút. Không chia sẻ mã này với bất kỳ ai.\n"
         "Nếu bạn không yêu cầu đặt lại mật khẩu, hãy bỏ qua email này.\n"
     )
@@ -60,7 +60,7 @@ def send_code_email(user, code):
         '<div style="font-family:Arial,sans-serif;max-width:480px;margin:auto;color:#1f2937">'
         "<h2>Đặt lại mật khẩu</h2>"
         f"<p>Xin chào {name},</p>"
-        "<p>Mã xác thực để đặt lại mật khẩu Smart Finance của bạn là:</p>"
+        "<p>Mã xác thực để đặt lại mật khẩu FinBuddy của bạn là:</p>"
         f'<p style="font-size:32px;font-weight:bold;letter-spacing:8px">{code}</p>'
         f"<p>Mã có hiệu lực trong <b>{minutes} phút</b>. Không chia sẻ mã này với bất kỳ ai.</p>"
         '<p style="color:#6b7280;font-size:13px">Nếu bạn không yêu cầu đặt lại mật khẩu, '
