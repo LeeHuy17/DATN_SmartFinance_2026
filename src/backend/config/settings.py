@@ -33,6 +33,7 @@ INSTALLED_APPS = [
     "reports",
     "notifications",
     "advisor",
+    "receipts",
 ]
 
 MIDDLEWARE = [
@@ -93,6 +94,7 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_RATES": {
         "advisor": "20/hour",
         "avatar_upload": "20/hour",
+        "receipt_scan": "30/hour",
     },
 }
 
@@ -146,6 +148,12 @@ DEFAULT_FROM_EMAIL = os.environ.get(
 GROQ_API_KEY = os.environ.get("GROQ_API_KEY", "")
 GROQ_MODEL = os.environ.get("GROQ_MODEL", "openai/gpt-oss-120b")
 GROQ_TIMEOUT = int(os.environ.get("GROQ_TIMEOUT", "30"))
+
+
+# Quét hóa đơn (EasyOCR + OpenCV, chạy ngay trên server)
+OCR_LANGUAGES = ["vi", "en"]
+OCR_MODEL_DIR = os.environ.get("OCR_MODEL_DIR", str(BASE_DIR / "ocr_models"))
+OCR_PERSPECTIVE = os.environ.get("OCR_PERSPECTIVE", "1") == "1"  # tắt nếu tự cắt khung bị sai
 
 # Giao diện trang admin (django-unfold)
 UNFOLD = {

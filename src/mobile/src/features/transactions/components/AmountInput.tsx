@@ -1,5 +1,5 @@
 import { forwardRef, useState } from 'react';
-import { Platform, Text, TextInput, View, type TextStyle } from 'react-native';
+import { Platform, Text, TextInput, View, type TextStyle, TextInputInstance } from 'react-native';
 
 import { FieldError } from '@/components/FieldError';
 import { makeStyles, spacing, useColors } from '@/theme';
@@ -21,7 +21,7 @@ type Props = {
 };
 
 /** Ô nhập số tiền cỡ lớn, tự thêm dấu chấm phân cách hàng nghìn khi gõ */
-export const AmountInput = forwardRef<TextInput, Props>(function AmountInput(
+export const AmountInput = forwardRef<TextInputInstance, Props>(function AmountInput(
   { value, onChange, error, autoFocus, label = 'Số tiền' },
   ref,
 ) {

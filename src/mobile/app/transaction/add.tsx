@@ -148,6 +148,8 @@ export default function AddTransactionScreen() {
       date: toYmd(date),
       note: note.trim() || ocr?.merchant?.trim() || '',
       source: original?.source ?? (ocr ? 'ocr' : 'manual'),
+      // Đính kèm ảnh hóa đơn đã quét vào giao dịch mới
+      receiptId: id ? undefined : ocr?.receiptId,
     };
 
     setSaving(true);

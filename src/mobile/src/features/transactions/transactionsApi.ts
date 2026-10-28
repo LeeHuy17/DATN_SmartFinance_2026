@@ -32,6 +32,8 @@ export type ApiTransaction = {
   source: TransactionSource;
   /** YYYY-MM-DD */
   date: string;
+  receipt: number | null;
+  receipt_image_url: string | null;
   created_at: string;
   updated_at: string;
   /** Chỉ có khi tạo / sửa giao dịch chi: các ngân sách vừa chạm ngưỡng hoặc vượt mức */
@@ -59,6 +61,7 @@ const toTransaction = (t: ApiTransaction): Transaction => {
     amount: t.kind === 'expense' ? -amount : amount,
     date: fromYmd(t.date).toISOString(),
     source: t.source,
+    receiptImageUrl: t.receipt_image_url ?? undefined,
     budgetAlerts: t.budget_alerts?.map(toBudgetAlert),
   };
 };
@@ -71,6 +74,7 @@ const toBody = (input: Partial<TransactionInput>) =>
     note: input.note,
     date: input.date,
     source: input.source,
+    receipt: input.receiptId,
   });
 
 // ---------- Giao dịch ----------

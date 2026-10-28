@@ -17,7 +17,7 @@ import { Chip } from '@/components/Chip';
 import { FieldError } from '@/components/FieldError';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { findPossibleDuplicate } from '@/features/ocr/duplicates';
-import type { OcrFields } from '@/features/ocr/ocrApi';
+import type { OcrFields, ReviewField } from '@/features/ocr/ocrApi';
 import { groupThousands } from '@/features/transactions/components/AmountInput';
 import { CategoryGrid } from '@/features/transactions/components/CategoryGrid';
 import { parseDayInput } from '@/features/transactions/filters';
@@ -60,6 +60,10 @@ export function ConfirmReceipt({ uri, fields, onRetake, onCancel, onSaved }: Pro
   const [existing, setExisting] = useState<Transaction[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  // Ô server không chắc chắn: tô vàng cho tới khi người dùng tự sửa
+  const [reviewed, setReviewed] = useState<string[]>([]);
+  const needs = (key: ReviewField) => !!fields.needsReview?.includes(key) && !reviewed.includes(key);
+  const markReviewed = (key: ReviewField) => setReviewed((r) => (r.includes(key) ? r : [...r, key]));
 
   useEffect(() => {
     Promise.all([listWallets(), listCategories('expense')])
@@ -104,6 +108,7 @@ export function ConfirmReceipt({ uri, fields, onRetake, onCancel, onSaved }: Pro
         date: toYmd(date),
         note: merchant.trim(),
         source: 'ocr',
+        receiptId: fields.receiptId,
       });
       onSaved();
     } catch (e) {
@@ -138,7 +143,7 @@ export function ConfirmReceipt({ uri, fields, onRetake, onCancel, onSaved }: Pro
               <Text style={styles.pillText}>Chờ xác nhận</Text>
             </View>
             <Text style={styles.introText}>
-              Kiểm tra kỹ thông tin do AI đọc từ ảnh. Giao dịch chỉ được lưu sau khi bạn bấm Xác nhận.
+              Kiểm tra kỹ thông tin đọc từ ảnh, nhất là ô được tô vàng. Giao dịch chỉ được lưu sau khi bạn bấm Xác nhận.
             </Text>
             <Pressable onPress={onRetake} hitSlop={8} accessibilityRole="button">
               <Text style={styles.link}>Chụp lại</Text>
@@ -153,8 +158,9 @@ export function ConfirmReceipt({ uri, fields, onRetake, onCancel, onSaved }: Pro
             onEdit={() => setEditing('merchant')}
             display={merchant || 'Chưa có tên'}
             muted={!merchant}
+            review={needs('merchant')}
           >
-            <InlineInput value={merchant} onChangeText={setMerchant} onDone={() => setEditing(null)} maxLength={60} />
+            <InlineInput value={merchant} onChangeText={(t) => { setMerchant(t); markReviewed('merchant'); }} onDone={() => setEditing(null)} maxLength={60} />
           </EditableRow>
 
           <EditableRow
@@ -162,10 +168,14 @@ export function ConfirmReceipt({ uri, fields, onRetake, onCancel, onSaved }: Pro
             editing={editing === 'date'}
             onEdit={() => setEditing('date')}
             display={day}
+            review={needs('date')}
           >
             <InlineInput
               value={day}
-              onChangeText={(t) => setDay(maskDayInput(t))}
+              onChangeText={(t) => {
+                setDay(maskDayInput(t));
+                markReviewed('date');
+              }}
               onDone={() => setEditing(null)}
               keyboardType="number-pad"
               placeholder="dd/mm/yyyy"
@@ -178,12 +188,14 @@ export function ConfirmReceipt({ uri, fields, onRetake, onCancel, onSaved }: Pro
             editing={editing === 'amount'}
             onEdit={() => setEditing('amount')}
             display={formatVnd(amount)}
+            review={needs('total')}
           >
             <InlineInput
               value={amount > 0 ? groupThousands(String(amount)) : ''}
               onChangeText={(t) => {
                 const digits = t.replace(/\D/g, '').replace(/^0+/, '').slice(0, 12);
                 setAmount(digits ? Number(digits) : 0);
+                markReviewed('total');
               }}
               onDone={() => setEditing(null)}
               keyboardType="number-pad"
@@ -193,7 +205,7 @@ export function ConfirmReceipt({ uri, fields, onRetake, onCancel, onSaved }: Pro
           </EditableRow>
 
           <EditableRow
-            label="Danh mục (AI gợi ý)"
+            label="Danh mục (gợi ý)"
             editing={false}
             onEdit={() => {
               setEditing(null);
@@ -201,6 +213,7 @@ export function ConfirmReceipt({ uri, fields, onRetake, onCancel, onSaved }: Pro
             }}
             display={category?.name ?? 'Chưa chọn'}
             muted={!category}
+            review={needs('category')}
             last
           />
         </View>
@@ -225,7 +238,14 @@ export function ConfirmReceipt({ uri, fields, onRetake, onCancel, onSaved }: Pro
         <Pressable style={styles.cancel} onPress={onCancel} accessibilityRole="button">
           <Text style={styles.cancelText}>Hủy bỏ</Text>
         </Pressable>
-        <PrimaryButton title="Xác nhận" onPress={handleConfirm} loading={saving} style={styles.confirm} />
+        {/* Chưa có danh mục (server không đoán được) thì bắt buộc tự chọn, không tự điền giúp */}
+        <PrimaryButton
+          title="Xác nhận"
+          onPress={handleConfirm}
+          loading={saving}
+          disabled={!category}
+          style={styles.confirm}
+        />
       </View>
 
       <BottomSheet visible={categorySheet} title="Chọn danh mục" onClose={() => setCategorySheet(false)}>
@@ -235,6 +255,7 @@ export function ConfirmReceipt({ uri, fields, onRetake, onCancel, onSaved }: Pro
             value={categoryId}
             onChange={(id) => {
               setCategoryId(id);
+              markReviewed('category');
               setCategorySheet(false);
             }}
           />
@@ -252,6 +273,7 @@ function EditableRow({
   onEdit,
   muted,
   last,
+  review,
   children,
 }: {
   label: string;
@@ -260,14 +282,19 @@ function EditableRow({
   onEdit: () => void;
   muted?: boolean;
   last?: boolean;
+  /** Server không chắc chắn về ô này */
+  review?: boolean;
   children?: ReactNode;
 }) {
   const styles = useStyles();
   const colors = useColors();
   return (
-    <View style={[styles.row, !last && styles.rowDivider]}>
+    <View style={[styles.row, !last && styles.rowDivider, review && styles.rowReview]}>
       <View style={styles.flex}>
-        <Text style={styles.rowLabel}>{label}</Text>
+        <Text style={styles.rowLabel}>
+          {label}
+          {review && <Text style={styles.reviewTag}>  ·  Kiểm tra lại</Text>}
+        </Text>
         {editing ? children : <Text style={[styles.rowValue, muted && styles.rowMuted]}>{display}</Text>}
       </View>
       {!editing && (
@@ -344,6 +371,8 @@ const useStyles = makeStyles((colors) => ({
   },
   row: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.md - 2 },
   rowDivider: { borderBottomWidth: 1, borderBottomColor: colors.divider },
+  rowReview: { backgroundColor: colors.warmSoft, marginHorizontal: -spacing.md, paddingHorizontal: spacing.md },
+  reviewTag: { fontWeight: '700', color: colors.warm },
   rowLabel: { fontSize: 12, color: colors.textMuted },
   rowValue: { marginTop: 2, fontSize: 17, fontWeight: '700', color: colors.text },
   rowMuted: { color: colors.textMuted, fontWeight: '500' },

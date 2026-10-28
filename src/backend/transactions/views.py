@@ -27,7 +27,7 @@ class TransactionViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         return Transaction.objects.filter(user=self.request.user).select_related(
-            "wallet", "category"
+            "wallet", "category", "receipt"
         )
 
     def perform_create(self, serializer):

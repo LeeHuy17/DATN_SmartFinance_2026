@@ -19,7 +19,6 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { ReceiptPlaceholder } from '@/features/ocr/components/ReceiptPlaceholder';
 import { ScanFrame } from '@/features/ocr/components/ScanFrame';
-import { isOcrFailureForced, toggleOcrFailure } from '@/features/ocr/ocrApi';
 import { setPendingReceipt } from '@/features/ocr/pendingReceipt';
 import { scanColors } from '@/features/ocr/scanTheme';
 
@@ -49,7 +48,6 @@ export default function ScanReceiptScreen() {
   const [torch, setTorch] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [failureForced, setFailureForced] = useState(isOcrFailureForced());
 
   // Lần đầu mở: hỏi quyền camera ngay, không bắt người dùng bấm thêm một nút
   useEffect(() => {
@@ -79,7 +77,7 @@ export default function ScanReceiptScreen() {
     setBusy(true);
     setError(null);
     try {
-      const photo = await cameraRef.current.takePictureAsync({ quality: 0.7 });
+      const photo = await cameraRef.current.takePictureAsync({ quality: 0.8 });
       if (photo?.uri) openPreview(photo.uri, 'camera');
     } catch {
       setError('Không chụp được ảnh. Vui lòng thử lại.');
@@ -91,15 +89,16 @@ export default function ScanReceiptScreen() {
   const pickFromLibrary = async () => {
     setError(null);
     try {
-      const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.8 });
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        quality: 0.8,
+        // iPhone lưu ảnh dạng HEIC, server không đọc được: bắt iOS đổi sang JPEG
+        preferredAssetRepresentationMode: ImagePicker.UIImagePickerPreferredAssetRepresentationMode.Compatible,
+      });
       if (!result.canceled && result.assets[0]) openPreview(result.assets[0].uri, 'gallery');
     } catch {
       setError('Không mở được thư viện ảnh.');
     }
-  };
-
-  const toggleFailure = () => {
-    if (__DEV__) setFailureForced(toggleOcrFailure());
   };
 
   if (permissionDenied) {
@@ -160,11 +159,7 @@ export default function ScanReceiptScreen() {
           >
             <Ionicons name="close" size={28} color={scanColors.onDark} />
           </Pressable>
-          {/* Chỉ trong bản dev: giữ tay lên tiêu đề để giả lập đọc hóa đơn thất bại */}
-          <Pressable onLongPress={toggleFailure} delayLongPress={600}>
-            <Text style={styles.title}>Quét hóa đơn</Text>
-            {__DEV__ && failureForced && <Text style={styles.mockBadge}>Giả lập: đọc thất bại</Text>}
-          </Pressable>
+          <Text style={styles.title}>Quét hóa đơn</Text>
           <Pressable
             onPress={() => setTorch((t) => !t)}
             disabled={!cameraReady || !TORCH_SUPPORTED}
@@ -311,7 +306,6 @@ const styles = StyleSheet.create({
   /** Vùng chạm 44×44 cho nút đóng / flash */
   iconButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   title: { fontSize: 18, fontWeight: '700', color: scanColors.onDark, textAlign: 'center' },
-  mockBadge: { fontSize: 11, fontWeight: '600', color: scanColors.scanLine, textAlign: 'center' },
   middle: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 28 },
   frameHole: { borderRadius: 18 },
   dimOutside: { boxShadow: `0 0 0 2000px ${scanColors.dim}` },

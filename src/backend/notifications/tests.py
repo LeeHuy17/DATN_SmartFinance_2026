@@ -277,6 +277,10 @@ class CommandTests(Base):
         )
         self._notify()  # chưa đọc thì giữ dù cũ
         out = StringIO()
-        call_command("send_scheduled_notifications", stdout=out)
+        # Chỉ kiểm tra việc dọn dẹp: tắt nhắc ghi chép / email tổng kết, vì chúng phụ thuộc giờ thật
+        # (sau 20:00 lệnh sẽ tự tạo thêm thông báo nhắc và làm sai số đếm)
+        cmd = "notifications.management.commands.send_scheduled_notifications"
+        with mock.patch(f"{cmd}.send_daily_reminders", return_value=0),                 mock.patch(f"{cmd}.send_monthly_digests", return_value=0):
+            call_command("send_scheduled_notifications", stdout=out)
         self.assertIn("Đã dọn: 1", out.getvalue())
         self.assertEqual(Notification.objects.count(), 1)

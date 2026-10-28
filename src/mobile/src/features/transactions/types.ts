@@ -51,6 +51,8 @@ export type Transaction = {
   date: string;
   note?: string;
   source: TransactionSource;
+  /** Ảnh hóa đơn đã quét gắn với giao dịch, nếu có */
+  receiptImageUrl?: string;
   /** Chỉ có ngay sau khi tạo / sửa giao dịch chi: ngân sách vừa chạm ngưỡng hoặc vượt mức */
   budgetAlerts?: BudgetAlert[];
 };
@@ -65,4 +67,6 @@ export type TransactionInput = {
   date: string;
   note: string;
   source: TransactionSource;
+  /** Id hóa đơn đã quét (từ POST /receipts/scan/) để đính kèm giao dịch */
+  receiptId?: number;
 };
