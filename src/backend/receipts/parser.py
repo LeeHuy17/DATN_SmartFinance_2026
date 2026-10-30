@@ -1,3 +1,4 @@
+import difflib
 import re
 import unicodedata
 from collections import Counter
@@ -97,35 +98,69 @@ PAY_KEYS = ("thanh toan", "chuyen khoan", "quet the", "the tin dung",
 EXCLUDE = ("tam tinh", "subtotal", "sub total", "tien thua", "tra lai", "khach dua",
            "tien khach", "chua vat", "truoc thue", "tien thue", "thue gtgt",
            "giam gia", "chiet khau", "diem tich", "tich luy",
-           "tong tien hang", "tong so luong", "tong sl",
+           "tong tien hang", "tong so luong", "tong sl", "tong thanh tien",
            # "Total Discount" không phải tổng tiền; mã giao dịch ví / QR chứa dãy số dài
            "discount", "txn", "qr code", "ma giao dich")
+# Dòng tiêu đề như "HÓA ĐƠN THANH TOÁN" chứa chữ "thanh toán" nhưng không phải dòng tiền
+TITLE_KEYS = ("hoa don", "phieu", "invoice", "receipt")
 
 
-def _value_at(lines, i):
+def _key(line):
+    """Chữ thường, bỏ dấu và ký tự lạ: 'Tong [thanh tien' -> 'tong thanh tien'."""
+    return " ".join(re.sub(r"[^a-z0-9]+", " ", fold(line)).split())
+
+
+def _mostly_numeric(line):
+    """Dòng chỉ gồm số tiền (vd 'VND 95.944'), không phải dòng chữ như số hóa đơn 'HD010222-0134'."""
+    return sum(c.isalpha() for c in line) <= 3 and any(c.isdigit() for c in line)
+
+
+def _fuzzy_total_label(key):
+    """OCR làm hỏng 'Tổng cộng' thành 'Tono-' hay 'Jcong': khớp gần đúng từng từ."""
+    for token in key.split():
+        for word, threshold in (("cong", 0.8), ("tong", 0.75)):
+            if difflib.SequenceMatcher(None, token, word).ratio() >= threshold:
+                return True
+    return False
+
+
+def _value_at(lines, i, use_next_line=True):
     values = amounts_in(lines[i], loose=True)
     # Nhãn và số tiền đôi khi bị OCR tách thành hai dòng
-    if not values and i + 1 < len(lines) and not any(k in fold(lines[i + 1]) for k in EXCLUDE):
+    if (not values and use_next_line and i + 1 < len(lines) and _mostly_numeric(lines[i + 1])
+            and not any(k in _key(lines[i + 1]) for k in EXCLUDE)):
         values = amounts_in(lines[i + 1], loose=True)[:1]
     return values[-1] if values else None
 
 
 def extract_total(lines):
     """Trả (số tiền, độ tin cậy). Dòng 'tổng' là gốc, dòng thanh toán dùng để đối chiếu."""
-    totals, pays = [], []
+    totals, pays, fuzzy = [], [], []
     for i, line in enumerate(lines):
-        key = fold(line)
+        key = _key(line)
         if any(k in key for k in EXCLUDE):
             continue
+        title = any(k in key for k in TITLE_KEYS)
         if any(k in key for k in TOTAL_KEYS):
             bucket = totals
+        elif title:
+            continue
         elif any(k in key for k in PAY_KEYS):
             bucket = pays
+        elif _fuzzy_total_label(key):
+            values = amounts_in(line, loose=True)  # nhãn đã hỏng nên chỉ tin số ngay trên dòng đó
+            if values:
+                fuzzy.append(values[-1])
+            continue
         else:
             continue
-        value = _value_at(lines, i)
+        value = _value_at(lines, i, use_next_line=not title)
         if value:
             bucket.append(value)
+
+    if not totals and fuzzy:
+        # Nhãn tổng bị OCR đọc sai: chỉ khi có dòng thanh toán trùng số mới tin hơn
+        return fuzzy[-1], 0.8 if fuzzy[-1] in pays else 0.6
 
     if totals:
         confirmed = [v for v in totals if v in pays]
@@ -142,7 +177,7 @@ def extract_total(lines):
 
     # Không có từ khóa: lấy số lớn nhất ở 60% dưới của hóa đơn, độ tin cậy thấp
     pool = [v for line in lines[int(len(lines) * 0.4):]
-            if not any(k in fold(line) for k in EXCLUDE) for v in amounts_in(line)]
+            if not any(k in _key(line) for k in EXCLUDE) for v in amounts_in(line)]
     return (max(pool), 0.4) if pool else (None, 0.0)
 
 
@@ -155,6 +190,8 @@ SKIP_RE = re.compile(
 ADDRESS_RE = re.compile(
     r"^\d+[a-z]?(?:[/-]\d+)*\s|phuong|\bquan\b|duong|thanh pho|\btp\b|\btinh\b"
     r"|\bq\.?\s?\d+\b|\bp\.?\s?\d+\b|ward|district|street"
+    # "ĐC:" hay bị đọc thành "OC;" / "0C:"; số nhà dạng 543/1; tên thành phố phổ biến
+    r"|^[do0]c\s*[:;.]|\b\d{1,4}/\d{1,4}\b|\bhcm\b|\btphcm\b|ha noi|da nang|go vap"
 )
 
 

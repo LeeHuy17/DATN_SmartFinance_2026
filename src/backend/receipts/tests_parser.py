@@ -83,6 +83,30 @@ class ParserTests(SimpleTestCase):
         total, _ = extract_total(["TỔNG CỘNG VND 95 944"])
         self.assertEqual(total, Decimal("95944"))
 
+    def test_garbled_total_label_and_title_line(self):
+        # Hóa đơn Gò Coffee: "Tổng cộng" bị đọc thành "Tono- ... Jcong", và tiêu đề "HÓA ĐƠN THANH TOÁN"
+        # (chứa "thanh toán") từng kéo số hóa đơn 10222 vào làm tổng tiền
+        lines = ["Hoa DON ThanH Toan", "S0 Hdo10222*0134", "Ngay: 01/02/2022",
+                 "Yaourt dau 28,000", "Tong [thanh tien 35,000 35,000",
+                 "Tono- VAT (100*) Jcong 167,000", "Tlen Tlen [ khóch Irá 334,00o 167,00",
+                 "Ihuo 334,000"]
+        total, conf = extract_total(lines)
+        self.assertEqual(total, Decimal("167000"))
+        self.assertLess(conf, 0.7)  # nhãn đọc sai nên vẫn tô vàng để người dùng kiểm tra
+
+    def test_title_line_does_not_make_a_confident_total(self):
+        # Không có dòng tổng nào: chỉ còn phương án "số lớn nhất", độ tin cậy thấp nên app tô vàng
+        _, conf = extract_total(["HÓA ĐƠN THANH TOÁN", "HD010222-0134"])
+        self.assertLess(conf, 0.7)
+
+    def test_label_followed_by_text_line_is_not_a_confident_total(self):
+        _, conf = extract_total(["Tổng cộng", "S0 Hdo10222*0134"])
+        self.assertLess(conf, 0.7)
+
+    def test_merchant_skips_address_with_misread_prefix(self):
+        lines = ["Co Coffee", "OC; 543/1 Phan Van Trl Go Vap, HCM", "SDT: 0388172131"]
+        self.assertEqual(extract_merchant(lines), "Co Coffee")
+
     def test_fallback_without_keywords_is_low_confidence(self):
         total, conf = extract_total(["Quán A", "Phở 45.000", "Trà đá 5.000", "50.000"])
         self.assertEqual(total, Decimal("50000"))
