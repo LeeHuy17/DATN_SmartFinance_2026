@@ -1,6 +1,8 @@
 import logging
 import threading
 
+import cv2
+
 from django.conf import settings
 
 logger = logging.getLogger(__name__)
@@ -56,9 +58,79 @@ def group_lines(items):
     return lines
 
 
+def _is_sideways(horizontal_list, free_list):
+    """Chữ in dọc (ảnh bị xoay 90 độ): đa số hộp chữ cao hơn rộng. Ảnh thẳng thì ngược lại."""
+    wide = tall = 0
+    for box in horizontal_list:  # [x_min, x_max, y_min, y_max]
+        w, h = box[1] - box[0], box[3] - box[2]
+        wide += w >= 1.5 * h
+        tall += h >= 1.5 * w
+    for poly in free_list:  # 4 điểm, hộp nghiêng
+        xs, ys = [p[0] for p in poly], [p[1] for p in poly]
+        w, h = max(xs) - min(xs), max(ys) - min(ys)
+        wide += w >= 1.5 * h
+        tall += h >= 1.5 * w
+    return tall >= 5 and tall >= 3 * wide
+
+
+def _quality(results):
+    """Tổng (độ tin cậy x số ký tự): ảnh đúng chiều có nhiều chữ đọc chắc hơn hẳn ảnh nằm ngang."""
+    return sum(conf * len(text) for _, text, conf in results)
+
+
+def _pick_rotation(reader, gray, horizontal_list):
+    """Chọn xoay thuận hay ngược chiều kim đồng hồ bằng cách đọc thử vài hộp chữ lớn nhất ở mỗi chiều.
+
+    Đọc cả ảnh ở hai chiều sẽ tốn thêm hàng chục giây trên CPU; đọc thử mười hộp chỉ mất vài giây.
+    """
+    boxes = sorted(horizontal_list, key=lambda b: (b[1] - b[0]) * (b[3] - b[2]), reverse=True)[:10]
+    crops = []
+    for x_min, x_max, y_min, y_max in boxes:
+        crop = gray[max(0, int(y_min)):int(y_max), max(0, int(x_min)):int(x_max)]
+        if crop.size:
+            crops.append(crop)
+    scores = {}
+    for code in (cv2.ROTATE_90_CLOCKWISE, cv2.ROTATE_90_COUNTERCLOCKWISE):
+        total = 0.0
+        for crop in crops:
+            rotated = cv2.rotate(crop, code)
+            height, width = rotated.shape[:2]
+            total += _quality(reader.recognize(rotated, [[0, width, 0, height]], [], detail=1))
+        scores[code] = total
+    return max(scores, key=scores.get)
+
+
+ORIENTATION_CHECK_LONG_SIDE = 640  # kiểm tra hướng trên bản thu nhỏ: nhanh gấp nhiều lần bản đầy đủ
+
+
+def _upright(reader, gray):
+    """Xoay lại ảnh hóa đơn bị xoay 90 độ (dữ liệu điểm ảnh nằm ngang dù người xem thấy thẳng).
+
+    Chỉ kiểm tra ảnh nằm ngang (hóa đơn thường dọc, nên ảnh nằm ngang mới có khả năng bị xoay) và chỉ
+    trên bản thu nhỏ, để ảnh thẳng không tốn thêm thời gian đáng kể.
+    """
+    height, width = gray.shape[:2]
+    if width < 1.15 * height:
+        return gray
+    scale = ORIENTATION_CHECK_LONG_SIDE / max(height, width)
+    small = cv2.resize(gray, None, fx=scale, fy=scale, interpolation=cv2.INTER_AREA)
+    horizontal, free = reader.detect(small)
+    if not _is_sideways(horizontal[0], free[0]):
+        return gray
+    full_size_boxes = [[v / scale for v in box] for box in horizontal[0]]
+    return cv2.rotate(gray, _pick_rotation(reader, gray, full_size_boxes))
+
+
+def _recognize(reader, gray):
+    """Giống reader.readtext nhưng tự xoay lại ảnh nằm ngang trước khi đọc."""
+    gray = _upright(reader, gray)
+    horizontal, free = reader.detect(gray)
+    return reader.recognize(gray, horizontal[0], free[0], detail=1, paragraph=False)
+
+
 def read_lines(gray):
     with _lock:  # torch không nên chạy song song trên cùng một bộ đọc
-        results = get_reader().readtext(gray, detail=1, paragraph=False)
+        results = _recognize(get_reader(), gray)
     items = []
     for box, text, conf in results:
         text = text.strip()
