@@ -20,6 +20,15 @@ DATE_PATTERNS = [
     (re.compile(r"(?<!\d)(\d{4})[/\-.](\d{1,2})[/\-.](\d{1,2})(?!\d)"), "ymd"),
     (re.compile(r"(?<!\d)(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2})(?!\d)"), "dmy"),
     (re.compile(r"ngay\s*(\d{1,2})\s*thang\s*(\d{1,2})\s*nam\s*(\d{4})"), "dmy"),
+    # "16 thg 3, 2022"
+    (re.compile(r"(?<!\d)(\d{1,2})\s*thg?\s*(\d{1,2})\s*[,.]?\s*(\d{4})(?!\d)"), "dmy"),
+    # OCR đánh rơi dấu phân cách đầu: "14 10.2019"
+    (re.compile(r"(?<!\d)(\d{1,2})\s+(\d{1,2})[/\-.]((?:19|20)\d{2})(?!\d)"), "dmy"),
+]
+# Chỉ thử khi không có định dạng nào ở trên khớp: "2023 0628" (OCR đọc 2023-06-28 mất dấu gạch).
+# Để riêng vì dạng này dễ trùng với số khác nên không dùng để xóa ngày khỏi dòng tiền.
+DATE_FALLBACK_PATTERNS = [
+    (re.compile(r"(?<!\d)(20\d{2})[ \-./]?(\d{2})[ \-./]?(\d{2})(?!\d)"), "ymd"),
 ]
 
 
@@ -36,14 +45,15 @@ def _make_date(d, m, y, today):
 
 
 def extract_date(lines, today):
-    for line in lines:
-        text = fold(line)
-        for rx, order in DATE_PATTERNS:
-            for m in rx.finditer(text):
-                a, b, c = (int(g) for g in m.groups())
-                value = _make_date(c, b, a, today) if order == "ymd" else _make_date(a, b, c, today)
-                if value:
-                    return value
+    for patterns in (DATE_PATTERNS, DATE_FALLBACK_PATTERNS):
+        for line in lines:
+            text = fold(line)
+            for rx, order in patterns:
+                for m in rx.finditer(text):
+                    a, b, c = (int(g) for g in m.groups())
+                    value = _make_date(c, b, a, today) if order == "ymd" else _make_date(a, b, c, today)
+                    if value:
+                        return value
     return None
 
 
@@ -67,14 +77,24 @@ def parse_amount(token):
         return Decimal(token.replace(",", "."))
     if re.fullmatch(r"\d+", token):
         return Decimal(token)
+    # Thừa một ký tự cuối do OCR đọc chữ "đ" hay dấu gạch thành số: "1,573,0004" -> 1.573.000
+    m = re.fullmatch(r"(\d{1,3}(?:[.,]\d{3})+)\d", token)
+    if m:
+        return Decimal(re.sub(r"[.,]", "", m.group(1)))
     return None
 
 
 SPACED_THOUSANDS_RE = re.compile(r"(?<![\d.,])(\d{1,3}) (\d{3})(?![\d])")
+# "23,350 ,oo0" (khoảng trắng trước dấu phân cách) và "88,378,- 400" (ký tự lạ sau dấu phân cách)
+SPACE_BEFORE_SEPARATOR_RE = re.compile(r"(?<=\d)\s+(?=[.,][\dOo]{3}\b)")
+JUNK_AFTER_SEPARATOR_RE = re.compile(r"(?<=\d[.,])[\s\-]+(?=[\dOo]{3}\b)")
 
 
 def amounts_in(line, loose=False):
-    """loose: coi '95 844' (OCR đọc dấu chấm thành khoảng trắng) là 95.844. Chỉ dùng ở dòng tổng tiền."""
+    """loose: sửa các lỗi OCR hay gặp ở dòng tổng tiền như '95 844', '23,350 ,000', '88,378,- 400'."""
+    if loose:
+        line = SPACE_BEFORE_SEPARATOR_RE.sub("", line)
+        line = JUNK_AFTER_SEPARATOR_RE.sub("", line)
     text = fold(_fix_ocr_digits(line))
     if loose:
         text = SPACED_THOUSANDS_RE.sub(r"\1.\2", text)
@@ -95,6 +115,7 @@ TOTAL_KEYS = ("tong thanh toan", "phai thanh toan", "tong cong", "tong tien",
               "tong so tien", "grand total", "amount due", "total")
 PAY_KEYS = ("thanh toan", "chuyen khoan", "quet the", "the tin dung",
             "the ngan hang", "momo", "zalopay", "vnpay")
+TENTATIVE_KEYS = ("tam tinh", "subtotal", "sub total")
 EXCLUDE = ("tam tinh", "subtotal", "sub total", "tien thua", "tra lai", "khach dua",
            "tien khach", "chua vat", "truoc thue", "tien thue", "thue gtgt",
            "giam gia", "chiet khau", "diem tich", "tich luy",
@@ -115,13 +136,35 @@ def _mostly_numeric(line):
     return sum(c.isalpha() for c in line) <= 3 and any(c.isdigit() for c in line)
 
 
+def _similar(token, word, threshold):
+    return difflib.SequenceMatcher(None, token, word).ratio() >= threshold
+
+
 def _fuzzy_total_label(key):
-    """OCR làm hỏng 'Tổng cộng' thành 'Tono-' hay 'Jcong': khớp gần đúng từng từ."""
+    """OCR làm hỏng 'Tổng cộng' thành 'Tono-' hay 'Jcong': khớp gần đúng từng từ.
+
+    'tong' chỉ chấp nhận đúng 4 ký tự (sai một ký tự như 't8ng', 'tono') để "trong" không bị tính nhầm.
+    """
     for token in key.split():
-        for word, threshold in (("cong", 0.8), ("tong", 0.75)):
-            if difflib.SequenceMatcher(None, token, word).ratio() >= threshold:
-                return True
+        if token in ("tong", "cong"):
+            return True
+        if len(token) == 4 and _similar(token, "tong", 0.75):
+            return True
+        if 4 <= len(token) <= 5 and _similar(token, "cong", 0.8):
+            return True
     return False
+
+
+def _fuzzy_pay_label(key):
+    """'Thanh toen:' (OCR đọc sai 'toán'): có từ giống 'thanh' và một từ 4 ký tự giống 'toan'."""
+    tokens = key.split()
+    return (any(_similar(t, "thanh", 0.8) for t in tokens)
+            and any(len(t) == 4 and _similar(t, "toan", 0.75) for t in tokens))
+
+
+def _close(a, b):
+    """Bằng nhau hoặc lệch do làm tròn: 450.430 và 450.000 (hóa đơn Bách Hóa Xanh ghi 'đã làm tròn')."""
+    return a == b or (abs(a - b) < 1000 and (a % 1000 == 0 or b % 1000 == 0))
 
 
 def _value_at(lines, i, use_next_line=True):
@@ -135,9 +178,15 @@ def _value_at(lines, i, use_next_line=True):
 
 def extract_total(lines):
     """Trả (số tiền, độ tin cậy). Dòng 'tổng' là gốc, dòng thanh toán dùng để đối chiếu."""
-    totals, pays, fuzzy = [], [], []
+    totals, pays, fuzzy, tentative = [], [], [], []
     for i, line in enumerate(lines):
         key = _key(line)
+        if any(k in key for k in TENTATIVE_KEYS):
+            # "Tổng tạm tính" là dòng tổng duy nhất trên phiếu tạm tính; chỉ dùng khi không có dòng tổng nào khác
+            values = amounts_in(line, loose=True)
+            if values:
+                tentative.append(values[-1])
+            continue
         if any(k in key for k in EXCLUDE):
             continue
         title = any(k in key for k in TITLE_KEYS)
@@ -145,10 +194,10 @@ def extract_total(lines):
             bucket = totals
         elif title:
             continue
-        elif any(k in key for k in PAY_KEYS):
+        elif any(k in key for k in PAY_KEYS) or _fuzzy_pay_label(key):
             bucket = pays
         elif _fuzzy_total_label(key):
-            values = amounts_in(line, loose=True)  # nhãn đã hỏng nên chỉ tin số ngay trên dòng đó
+            values = [v for v in amounts_in(line, loose=True) if v >= 1000]  # nhãn hỏng nên chỉ tin số ngay trên dòng
             if values:
                 fuzzy.append(values[-1])
             continue
@@ -158,22 +207,31 @@ def extract_total(lines):
         if value:
             bucket.append(value)
 
-    if not totals and fuzzy:
-        # Nhãn tổng bị OCR đọc sai: chỉ khi có dòng thanh toán trùng số mới tin hơn
-        return fuzzy[-1], 0.8 if fuzzy[-1] in pays else 0.6
-
     if totals:
-        confirmed = [v for v in totals if v in pays]
+        confirmed = [v for v in totals if any(_close(v, p) for p in pays)]
         if confirmed:  # dòng tổng được dòng thanh toán xác nhận
             return confirmed[-1], 0.95
         if pays:  # tổng và thanh toán lệch nhau: nghi OCR đọc sai một chữ số
             common, n = Counter(pays).most_common(1)[0]
-            return (common, 0.6) if n >= 2 else (totals[-1], 0.5)
-        return totals[-1], 0.85 if len(set(totals)) == 1 else 0.6
+            return (common, 0.6) if n >= 2 else (max(totals), 0.5)
+        # Nhiều dòng "tổng" khác nhau (vd. chưa thuế / thuế / sau thuế): số phải trả là số lớn nhất
+        return max(totals), 0.85 if len(set(totals)) == 1 else 0.6
+
+    if fuzzy:
+        # Nhãn tổng bị OCR đọc sai. Dòng thanh toán trùng số (hoặc lệch do làm tròn) thì tin hơn
+        for p in pays:
+            if any(_close(f, p) for f in fuzzy):
+                return p, 0.8
+        if pays:
+            return Counter(pays).most_common(1)[0][0], 0.6
+        return max(fuzzy), 0.6
 
     if pays:
         common, n = Counter(pays).most_common(1)[0]
         return common, 0.7 if n >= 2 else 0.55
+
+    if tentative:
+        return max(tentative), 0.5
 
     # Không có từ khóa: lấy số lớn nhất ở 60% dưới của hóa đơn, độ tin cậy thấp
     pool = [v for line in lines[int(len(lines) * 0.4):]

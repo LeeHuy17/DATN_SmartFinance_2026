@@ -3,7 +3,7 @@ from decimal import Decimal
 
 from django.test import SimpleTestCase
 
-from .ocr import group_lines
+from .ocr import _is_sideways, group_lines
 from .parser import (amounts_in, extract_date, extract_merchant, extract_total,
                      fold, parse_amount, parse_receipt)
 
@@ -94,6 +94,48 @@ class ParserTests(SimpleTestCase):
         self.assertEqual(total, Decimal("167000"))
         self.assertLess(conf, 0.7)  # nhãn đọc sai nên vẫn tô vàng để người dùng kiểm tra
 
+    def test_rounded_payment_confirms_garbled_total(self):
+        # Bách Hóa Xanh: "Tổng tiền" 450,430, "Thanh toán" 450,000 (đã làm tròn); nhãn bị OCR đọc thành "tlen"
+        total, conf = extract_total(["Tong tlen: 450,430", "Thanh toán: 450,000", "T8ng dal gop ÝlkRi:t"])
+        self.assertEqual(total, Decimal("450000"))
+        self.assertGreaterEqual(conf, 0.8)
+
+    def test_garbled_payment_label(self):
+        total, _ = extract_total(["Tong ten: 322,130", "Thanh toen: 322,000"])
+        self.assertEqual(total, Decimal("322000"))
+
+    def test_word_trong_is_not_a_total_label(self):
+        # "trong ngày . Liên hệ 02871 087 088" từng bị coi là dòng tổng và lấy số điện thoại làm tiền
+        total, _ = extract_total(["Thanh Toán 52 000", "trong ngày . Liên hệ 02871 087 088"])
+        self.assertEqual(total, Decimal("52000"))
+
+    def test_largest_total_wins_among_several_total_lines(self):
+        # Hóa đơn VAT: chưa thuế 19.250.000, thuế 1.540.000, thanh toán 20.790.000
+        lines = ["Tổng tiền chịu thuế suất 8% 8% 19.250.000 1.540.000 20.790.000",
+                 "Tổng cộng tiền thanh toán 19.250.000 1.540.000"]
+        total, _ = extract_total(lines)
+        self.assertEqual(total, Decimal("20790000"))
+
+    def test_stray_characters_inside_amount(self):
+        self.assertEqual(extract_total(["THANH TOAN 88,378,- 400", "Tone cêne 73,040,000"])[0],
+                         Decimal("88378400"))
+        self.assertEqual(extract_total(["Số tiền đã thanh toán: 23,350,000| Tổng 23,350 ,oo0]"])[0],
+                         Decimal("23350000"))
+
+    def test_tentative_total_used_when_it_is_the_only_one(self):
+        total, conf = extract_total(["Tiền hàng (16) 1,210,000", "TỔNG TAM TÍNH 1,573,0004"])
+        self.assertEqual(total, Decimal("1573000"))
+        self.assertLess(conf, 0.7)
+
+    def test_tentative_total_ignored_when_real_total_exists(self):
+        total, _ = extract_total(["Tạm tính 83.000", "Tổng cộng 89.640"])
+        self.assertEqual(total, Decimal("89640"))
+
+    def test_extra_date_formats(self):
+        self.assertEqual(extract_date(["Ngày: 16 thg 3,2022"], TODAY), date(2022, 3, 16))
+        self.assertEqual(extract_date(["Thởi giar:14 10.2019 16.36"], TODAY), date(2019, 10, 14))
+        self.assertEqual(extract_date(["2023 0628 18:15"], TODAY), date(2023, 6, 28))
+
     def test_title_line_does_not_make_a_confident_total(self):
         # Không có dòng tổng nào: chỉ còn phương án "số lớn nhất", độ tin cậy thấp nên app tô vàng
         _, conf = extract_total(["HÓA ĐƠN THANH TOÁN", "HD010222-0134"])
@@ -154,3 +196,16 @@ class ParserTests(SimpleTestCase):
         lines = group_lines([box("58.000", 300, 102), box("Cà phê", 10, 100),
                              box("Tổng cộng", 10, 160)])
         self.assertEqual([line["text"] for line in lines], ["Cà phê 58.000", "Tổng cộng"])
+
+    def test_sideways_detection_uses_box_shapes(self):
+        wide = [[0, 200, 0, 20]] * 10  # [x_min, x_max, y_min, y_max]: chữ nằm ngang
+        tall = [[0, 20, 0, 200]] * 10
+        self.assertFalse(_is_sideways(wide, []))
+        self.assertTrue(_is_sideways(tall, []))
+        self.assertTrue(_is_sideways(tall + wide[:2], []))  # vài hộp ngang lẫn vào (logo, mã vạch)
+        self.assertFalse(_is_sideways(wide + tall[:1], []))
+        self.assertFalse(_is_sideways(tall[:3], []))  # quá ít hộp để kết luận
+
+    def test_sideways_detection_handles_tilted_boxes(self):
+        tall_poly = [[(0, 0), (20, 0), (20, 200), (0, 200)]] * 8
+        self.assertTrue(_is_sideways([], tall_poly))
