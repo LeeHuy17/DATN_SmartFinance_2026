@@ -26,6 +26,13 @@ services:
       - "8000:8000"
     environment:
       OCR_MODEL_DIR: /models
+      DJANGO_MIGRATE: "1"  # migrate + collectstatic khi khởi động (xem docker-entrypoint.sh)
+    # Cổng 8000 chỉ mở sau khi migrate xong, nên dùng làm tín hiệu sẵn sàng cho scheduler
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('localhost', 8000), 2)"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
     volumes:
       - static_data:/app/staticfiles
       - media_data:/app/media
@@ -38,7 +45,7 @@ services:
     restart: unless-stopped
     env_file: .env
     depends_on:
-      db:
+      web:
         condition: service_healthy
     command: >
       sh -c "while true; do
