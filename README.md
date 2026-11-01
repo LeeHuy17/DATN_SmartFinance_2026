@@ -63,15 +63,22 @@ cp .env.example .env
 
 ```bash
 docker compose up -d --build
-docker compose exec web python manage.py migrate
 docker compose exec web python manage.py createsuperuser
 docker compose exec web python manage.py download_ocr_models   # tải trước mô hình OCR, chỉ cần một lần
 ```
+
+Service `web` tự chạy `migrate` và `collectstatic` mỗi lần khởi động (xem `docker-entrypoint.sh`).
 
 - API: http://localhost:8000/api/
 - Trang quản trị: http://localhost:8000/admin/
 
 Khi chạy dev, `docker-compose.override.yml` được nạp tự động: dùng `runserver`, gắn mã nguồn vào container nên sửa code là có hiệu lực ngay.
+
+Container chạy bằng user thường `app` (uid 1000), không phải root. Nếu máy đã có volume tạo từ image cũ (chạy bằng root), sửa quyền một lần:
+
+```bash
+docker compose run --rm --no-deps -u root --entrypoint "" web chown -R 1000:1000 /app/media /app/staticfiles /models
+```
 
 ### 2. Mobile
 
