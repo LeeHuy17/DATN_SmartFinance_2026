@@ -61,3 +61,47 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  # Sau khi image của main đã lên GHCR: SSH vào VM Azure, chép cấu hình và chạy image vừa build
+  deploy:
+    name: Deploy to Azure VM
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+    # Không huỷ giữa chừng một lần deploy đang chạy
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    env:
+      TARGET: ${{ vars.VM_USER }}@${{ vars.VM_HOST }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cấu hình SSH
+        env:
+          SSH_KEY: ${{ secrets.VM_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.VM_SSH_KNOWN_HOSTS }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/id_ed25519
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/id_ed25519
+
+      # Dùng tag sha-<commit> thay vì latest để biết chính xác bản nào đang chạy và dễ quay lại bản cũ
+      - name: Chép cấu hình và khởi động image mới
+        run: |
+          TAG="sha-${GITHUB_SHA::7}"
+          scp deploy/docker-compose.yml deploy/Caddyfile "$TARGET:/opt/finbuddy/"
+          ssh "$TARGET" "cd /opt/finbuddy \
+            && IMAGE_TAG=$TAG docker compose pull \
+            && IMAGE_TAG=$TAG docker compose up -d --remove-orphans \
+            && docker image prune -f"
+
+      - name: Kiểm tra site sau khi deploy
+        run: |
+          for i in $(seq 1 30); do
+            curl -fsS -o /dev/null "https://${{ vars.VM_HOST }}/admin/login/" && echo "Site đã chạy" && exit 0
+            sleep 10
+          done
+          echo "Site không phản hồi sau 5 phút" && exit 1
