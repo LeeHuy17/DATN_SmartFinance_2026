@@ -115,6 +115,15 @@ Mỗi pull request vào `develop` hoặc `main` tự động chạy:
 | Backend CI | `Test (Django + PostgreSQL)` | `manage.py check`, kiểm tra thiếu migration, chạy toàn bộ test |
 | Mobile CI | `Typecheck (tsc)` | Kiểm tra kiểu TypeScript |
 | Mobile CI | `Expo doctor` | Kiểm tra phiên bản gói khớp Expo SDK (chỉ cảnh báo) |
+| Docker Publish | `Build image` | Build image backend khi PR có sửa `src/backend/` (không đẩy lên registry) |
+
+Khi merge vào `main` hoặc gắn tag `v*`, workflow Docker Publish build và đẩy image backend lên GitHub Container Registry:
+
+```bash
+docker pull ghcr.io/leehuy17/finbuddy-backend:latest
+```
+
+Tag có sẵn: `latest` (bản mới nhất trên `main`), `sha-<commit>`, và `1.2.3` / `1.2` khi phát hành bằng tag `v1.2.3`.
 
 ## Quy trình làm việc với Git
 
