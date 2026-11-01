@@ -1,0 +1,79 @@
+# Chạy trên VM Azure: image backend lấy sẵn từ GHCR (không build trên VM), PostgreSQL chạy cùng VM
+# và lưu dữ liệu trên ổ đĩa VM, Caddy lo HTTPS.
+# GitHub Actions chép file này lên /opt/finbuddy và chạy với IMAGE_TAG=sha-<commit> mỗi lần deploy.
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    env_file: .env
+    # Không mở cổng ra ngoài: chỉ web và scheduler trong mạng nội bộ của compose gọi được
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  web:
+    image: ghcr.io/leehuy17/finbuddy-backend:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      POSTGRES_HOST: db
+      OCR_MODEL_DIR: /models
+      DJANGO_MIGRATE: "1"
+      DJANGO_BEHIND_HTTPS_PROXY: "1"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; socket.create_connection(('localhost', 8000), 2)"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    volumes:
+      - static_data:/app/staticfiles
+      - media_data:/app/media
+      - ocr_models:/models
+
+  # Cùng image với web: nhắc ghi chép, email tổng kết tháng, dọn hóa đơn chưa dùng
+  scheduler:
+    image: ghcr.io/leehuy17/finbuddy-backend:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      POSTGRES_HOST: db
+    depends_on:
+      web:
+        condition: service_healthy
+    command: >
+      sh -c "while true; do
+               python manage.py send_scheduled_notifications;
+               python manage.py cleanup_receipts;
+               sleep 600;
+             done"
+
+  # Tự xin và gia hạn chứng chỉ Let's Encrypt cho DOMAIN, chuyển tiếp vào web:8000
+  caddy:
+    image: caddy:2.8.4-alpine
+    restart: unless-stopped
+    depends_on:
+      - web
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DOMAIN: ${DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  postgres_data:
+  static_data:
+  media_data:
+  ocr_models:
+  caddy_data:
+  caddy_config:
