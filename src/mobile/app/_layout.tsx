@@ -1,25 +1,32 @@
 import { useCallback, useState } from 'react';
 import { View } from 'react-native';
 import { Stack } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 
 import { AnimatedSplash, SPLASH_BACKGROUND } from '@/components/AnimatedSplash';
+import { ToastHost } from '@/components/Toast';
 import { AuthProvider, useAuth } from '@/features/auth/AuthProvider';
+import { InAppBanner } from '@/features/notifications/components/InAppBanner';
+import { ThemeProvider, useTheme } from '@/theme';
 
 // Giữ splash tĩnh của hệ điều hành cho tới khi splash động (Lottie) sẵn sàng thay thế
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
-// TODO: bọc thêm Provider (React Query, theme)
+// TODO: bọc thêm Provider (React Query)
 export default function RootLayout() {
   return (
-    <AuthProvider>
-      <RootNavigator />
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <RootNavigator />
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 
 function RootNavigator() {
   const { isLoading, isSignedIn } = useAuth();
+  const { colors, isDark } = useTheme();
   const [animationDone, setAnimationDone] = useState(false);
   const [splashVisible, setSplashVisible] = useState(true);
 
@@ -31,9 +38,13 @@ function RootNavigator() {
 
   return (
     <View style={{ flex: 1, backgroundColor: SPLASH_BACKGROUND }}>
+      <StatusBar style={isDark ? 'light' : 'dark'} />
       {/* Dựng điều hướng ngay khi đọc xong token, nằm bên dưới lớp splash động */}
       {!isLoading && (
-        <Stack screenOptions={{ headerShown: false }}>
+        <Stack
+          // Nền màn theo theme để lúc chuyển màn không lóe nền trắng ở giao diện tối
+          screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.screen } }}
+        >
           {/* Chưa đăng nhập: chỉ vào được màn hình xác thực, mọi đường dẫn khác chuyển về /login */}
           <Stack.Protected guard={!isSignedIn}>
             <Stack.Screen name="(auth)/login" />
@@ -50,13 +61,32 @@ function RootNavigator() {
             <Stack.Screen name="(tabs)" />
             <Stack.Screen name="transaction/add" />
             <Stack.Screen name="transaction/preview" />
+            <Stack.Screen
+              name="receipt/scan"
+              // Màn thường (không dùng fullScreenModal): trong modal, khoảng chừa an toàn có thể bằng 0
+              // khiến nút đóng / flash bị đẩy lên dưới thanh trạng thái
+              options={{ animation: 'slide_from_bottom' }}
+            />
             <Stack.Screen name="transactions" />
             <Stack.Screen name="profile" />
+            <Stack.Screen name="personal-info" />
+            <Stack.Screen name="change-password" />
+            <Stack.Screen name="notifications" />
+            <Stack.Screen name="notification-settings" />
             <Stack.Screen name="categories/index" />
             <Stack.Screen name="categories/edit" />
+            <Stack.Screen name="help" />
+            <Stack.Screen name="about" />
           </Stack.Protected>
+
+          {/* Mở được ở cả hai trạng thái: từ màn Đăng ký và từ Hồ sơ */}
+          <Stack.Screen name="legal/[doc]" />
         </Stack>
       )}
+
+      {/* Banner thông báo mới trong lúc dùng app (chỉ khi đã đăng nhập) */}
+      {!isLoading && isSignedIn && <InAppBanner />}
+      {!isLoading && <ToastHost />}
 
       {/* Chỉ ẩn splash khi animation đã chạy hết VÀ đã biết trạng thái đăng nhập */}
       {splashVisible && (

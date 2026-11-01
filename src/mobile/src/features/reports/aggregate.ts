@@ -1,6 +1,8 @@
-import type { Transaction } from '@/features/transactions/types';
+// Dựng dữ liệu biểu đồ từ số liệu server đã tổng hợp (reportsApi.ts). Không cộng dồn giao dịch ở app.
+import { toYmd } from '@/lib/date';
 
 export type Period = 'week' | 'month' | 'year';
+export type ReportKind = 'expense' | 'income';
 
 /** Màu cho phần gộp "Khác" — xám nhạt, tách biệt với màu xám của bảng màu danh mục */
 export const OTHER_COLOR = '#A3ACA8';
@@ -18,39 +20,48 @@ export type CategorySlice = {
 
 export type Bucket = { label: string; amount: number; current: boolean };
 
+/** Thay đổi so với tháng trước (chỉ kỳ tháng); null khi tháng trước bằng 0 thì app hiện "—" */
+export type Change = { previousMonth: string; income: number | null; expense: number | null };
+
 export type Report = {
   period: Period;
   from: Date;
-  /** Hết ngày cuối kỳ */
+  /** Ngày cuối kỳ (0h) */
   to: Date;
+  /** Kỳ đang xem là kỳ hiện tại (không cho xem kỳ sau) */
+  isCurrent: boolean;
   totalIncome: number;
   totalExpense: number;
+  /** Biểu đồ tròn theo danh mục của `kind` */
+  kind: ReportKind;
   slices: CategorySlice[];
   /** Cột của biểu đồ chi tiêu: ngày (kỳ tuần), tuần (kỳ tháng), tháng (kỳ năm) */
   buckets: Bucket[];
+  change: Change | null;
 };
 
-const DAY = 86_400_000;
+/** Danh mục kèm tổng tiền (số nguyên đồng), từ /reports/by-category/ */
+export type CategoryTotal = { id: string; name: string; color: string; amount: number };
+
 const startOfDay = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
 
-/** Khoảng thời gian của kỳ chứa `now`; tuần bắt đầu từ thứ Hai */
-export function periodRange(period: Period, now = new Date()): { from: Date; to: Date } {
+/**
+ * Khoảng thời gian của kỳ cách kỳ hiện tại `offset` kỳ (0 = kỳ này, -1 = kỳ trước).
+ * Tuần bắt đầu từ thứ Hai. `to` là ngày cuối kỳ lúc 0h.
+ */
+export function periodRange(period: Period, offset = 0, now = new Date()): { from: Date; to: Date } {
   if (period === 'week') {
     const today = startOfDay(now);
     const mondayOffset = (today.getDay() + 6) % 7;
-    const from = new Date(today.getTime() - mondayOffset * DAY);
-    return { from, to: new Date(from.getTime() + 7 * DAY - 1) };
+    const from = new Date(today.getFullYear(), today.getMonth(), today.getDate() - mondayOffset + offset * 7);
+    return { from, to: new Date(from.getFullYear(), from.getMonth(), from.getDate() + 6) };
   }
   if (period === 'month') {
-    return {
-      from: new Date(now.getFullYear(), now.getMonth(), 1),
-      to: new Date(now.getFullYear(), now.getMonth() + 1, 1, 0, 0, 0, -1),
-    };
+    const from = new Date(now.getFullYear(), now.getMonth() + offset, 1);
+    return { from, to: new Date(from.getFullYear(), from.getMonth() + 1, 0) };
   }
-  return {
-    from: new Date(now.getFullYear(), 0, 1),
-    to: new Date(now.getFullYear() + 1, 0, 1, 0, 0, 0, -1),
-  };
+  const year = now.getFullYear() + offset;
+  return { from: new Date(year, 0, 1), to: new Date(year, 11, 31) };
 }
 
 /** Làm tròn phần trăm theo phần dư lớn nhất để tổng luôn là 100 */
@@ -72,88 +83,57 @@ function roundPercents(amounts: number[]): number[] {
   return floors;
 }
 
-function categorySlices(expenses: Transaction[]): CategorySlice[] {
-  const byCategory = new Map<string, { name: string; color: string; amount: number }>();
+/** Danh mục (server đã sắp giảm dần) → các phần của biểu đồ tròn: top 3, còn lại gộp "Khác" */
+export function categorySlices(items: CategoryTotal[]): CategorySlice[] {
   let otherAmount = 0;
-  for (const t of expenses) {
+  const named: CategoryTotal[] = [];
+  for (const c of items) {
     // Danh mục tên "Khác" của người dùng gộp luôn vào phần "Khác"
-    if (t.category.name.trim().toLowerCase() === 'khác') {
-      otherAmount += -t.amount;
-      continue;
-    }
-    const entry = byCategory.get(t.category.id) ?? { name: t.category.name, color: t.category.color, amount: 0 };
-    entry.amount += -t.amount;
-    byCategory.set(t.category.id, entry);
+    if (c.name.trim().toLowerCase() === 'khác') otherAmount += c.amount;
+    else named.push(c);
   }
-
-  const sorted = [...byCategory.entries()].sort((a, b) => b[1].amount - a[1].amount);
   // Còn đúng một danh mục dư thì vẽ riêng luôn, không cần gộp
-  const keepCount = sorted.length === TOP_CATEGORIES + 1 && otherAmount === 0 ? sorted.length : TOP_CATEGORIES;
-  const top = sorted.slice(0, keepCount);
-  otherAmount += sorted.slice(keepCount).reduce((s, [, v]) => s + v.amount, 0);
+  const keepCount = named.length === TOP_CATEGORIES + 1 && otherAmount === 0 ? named.length : TOP_CATEGORIES;
+  otherAmount += named.slice(keepCount).reduce((s, c) => s + c.amount, 0);
 
-  const items = top.map(([key, v]) => ({ key, ...v }));
-  if (otherAmount > 0) items.push({ key: 'other', name: 'Khác', color: OTHER_COLOR, amount: otherAmount });
-  const percents = roundPercents(items.map((i) => i.amount));
-  return items.map((it, i) => ({ ...it, percent: percents[i] }));
+  const slices = named.slice(0, keepCount).map((c) => ({ key: c.id, name: c.name, color: c.color, amount: c.amount }));
+  if (otherAmount > 0) slices.push({ key: 'other', name: 'Khác', color: OTHER_COLOR, amount: otherAmount });
+  const percents = roundPercents(slices.map((s) => s.amount));
+  return slices.map((s, i) => ({ ...s, percent: percents[i] }));
 }
 
 const WEEKDAYS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
+const sameDay = (a: Date, b: Date) => startOfDay(a).getTime() === startOfDay(b).getTime();
 
-function buckets(period: Period, from: Date, expenses: Transaction[], now: Date): Bucket[] {
-  const sumWhere = (pred: (d: Date) => boolean) =>
-    expenses.filter((t) => pred(new Date(t.date))).reduce((s, t) => s - t.amount, 0);
+/** Kỳ tuần: 7 cột theo ngày; `expenseByDay` là "YYYY-MM-DD" → số đã chi */
+export function weekBuckets(from: Date, expenseByDay: Map<string, number>, now = new Date()): Bucket[] {
+  return WEEKDAYS.map((label, i) => {
+    const day = new Date(from.getFullYear(), from.getMonth(), from.getDate() + i);
+    return { label, amount: expenseByDay.get(toYmd(day)) ?? 0, current: sameDay(day, now) };
+  });
+}
 
-  if (period === 'week') {
-    return WEEKDAYS.map((label, i) => {
-      const dayStart = new Date(from.getTime() + i * DAY);
-      const dayEnd = new Date(dayStart.getTime() + DAY);
-      return {
-        label,
-        amount: sumWhere((d) => d >= dayStart && d < dayEnd),
-        current: startOfDay(now).getTime() === dayStart.getTime(),
-      };
-    });
-  }
-
-  if (period === 'month') {
-    // Tuần 1: ngày 1–7, Tuần 2: 8–14, Tuần 3: 15–21, Tuần 4: 22 đến hết tháng
-    const ranges = [
-      [1, 7],
-      [8, 14],
-      [15, 21],
-      [22, 31],
-    ];
-    return ranges.map(([a, b], i) => ({
-      label: `Tuần ${i + 1}`,
-      amount: sumWhere((d) => d.getDate() >= a && d.getDate() <= b),
-      current: now.getDate() >= a && now.getDate() <= b,
-    }));
-  }
-
-  return Array.from({ length: 12 }, (_, m) => ({
-    label: `T${m + 1}`,
-    amount: sumWhere((d) => d.getMonth() === m),
-    current: now.getMonth() === m,
+/** Kỳ tháng: Tuần 1 là ngày 1–7, Tuần 2: 8–14, Tuần 3: 15–21, Tuần 4: 22 đến hết tháng */
+export function monthBuckets(from: Date, dailyExpense: number[], now = new Date()): Bucket[] {
+  const isThisMonth = from.getFullYear() === now.getFullYear() && from.getMonth() === now.getMonth();
+  const ranges = [
+    [1, 7],
+    [8, 14],
+    [15, 21],
+    [22, 31],
+  ];
+  return ranges.map(([a, b], i) => ({
+    label: `Tuần ${i + 1}`,
+    amount: dailyExpense.slice(a - 1, b).reduce((s, x) => s + x, 0),
+    current: isThisMonth && now.getDate() >= a && now.getDate() <= b,
   }));
 }
 
-/** Tính báo cáo của kỳ hiện tại từ danh sách giao dịch */
-export function buildReport(all: Transaction[], period: Period, now = new Date()): Report {
-  const { from, to } = periodRange(period, now);
-  const inPeriod = all.filter((t) => {
-    const d = new Date(t.date);
-    return d >= from && d <= to;
-  });
-  const expenses = inPeriod.filter((t) => t.amount < 0);
-
-  return {
-    period,
-    from,
-    to,
-    totalIncome: inPeriod.filter((t) => t.amount > 0).reduce((s, t) => s + t.amount, 0),
-    totalExpense: expenses.reduce((s, t) => s - t.amount, 0),
-    slices: categorySlices(expenses),
-    buckets: buckets(period, from, expenses, now),
-  };
+/** Kỳ năm: 12 cột theo tháng */
+export function yearBuckets(year: number, monthlyExpense: number[], now = new Date()): Bucket[] {
+  return monthlyExpense.map((amount, m) => ({
+    label: `T${m + 1}`,
+    amount,
+    current: year === now.getFullYear() && m === now.getMonth(),
+  }));
 }

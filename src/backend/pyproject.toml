@@ -1,0 +1,10 @@
+# Cấu hình ruff dùng chung cho máy dev và CI.
+# Ghi rõ bộ rule để nâng phiên bản ruff không tự bật thêm rule mới.
+[tool.ruff]
+target-version = "py312"
+line-length = 120
+extend-exclude = ["venv", "*/migrations/*"]
+
+[tool.ruff.lint]
+# E4/E7/E9 + F: lỗi cú pháp và lỗi logic (import thừa, biến không dùng, tên chưa định nghĩa...)
+select = ["E4", "E7", "E9", "F"]

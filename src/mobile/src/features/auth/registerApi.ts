@@ -1,5 +1,4 @@
-// TODO: thay hàm giả lập bằng apiFetch khi backend có endpoint đăng ký.
-// Giữ nguyên chữ ký hàm để màn hình đăng ký không phải sửa.
+import { ApiError, apiFetch } from '@/lib/api/client';
 
 export type RegisterPayload = { fullName: string; email: string; password: string };
 
@@ -9,10 +8,23 @@ export class EmailTakenError extends Error {
   }
 }
 
-const fakeDelay = (ms = 600) => new Promise((resolve) => setTimeout(resolve, ms));
+/** Mật khẩu bị server từ chối (quá phổ biến, giống email...); message là lý do server trả về */
+export class WeakPasswordError extends Error {}
 
-export async function registerAccount({ email }: RegisterPayload): Promise<void> {
-  await fakeDelay();
-  // Giả lập: email này coi như đã có tài khoản, để xem được lỗi trùng email khi chưa có backend
-  if (email === 'trung@example.com') throw new EmailTakenError();
+type RegisterErrors = { email?: string[]; password?: string[] };
+
+export async function registerAccount({ fullName, email, password }: RegisterPayload): Promise<void> {
+  try {
+    await apiFetch('/auth/register/', {
+      method: 'POST',
+      body: JSON.stringify({ email, password, full_name: fullName }),
+    }, { auth: false });
+  } catch (e) {
+    if (e instanceof ApiError && e.status === 400) {
+      const errors = (e.data ?? {}) as RegisterErrors;
+      if (errors.email) throw new EmailTakenError();
+      if (errors.password) throw new WeakPasswordError(errors.password.join(' '));
+    }
+    throw e;
+  }
 }

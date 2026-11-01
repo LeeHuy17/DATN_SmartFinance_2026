@@ -1,10 +1,11 @@
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { BalanceCard } from '@/features/dashboard/components/BalanceCard';
+import { BudgetAlertCard } from '@/features/dashboard/components/BudgetAlertCard';
 import { DashboardHeader } from '@/features/dashboard/components/DashboardHeader';
 import { DashboardSkeleton } from '@/features/dashboard/components/DashboardSkeleton';
 import { SectionHeader } from '@/features/dashboard/components/SectionHeader';
@@ -12,9 +13,11 @@ import { WalletList } from '@/features/dashboard/components/WalletList';
 import { useDashboard } from '@/features/dashboard/useDashboard';
 import { TransactionItem } from '@/features/transactions/components/TransactionItem';
 import { useTransactionQuickView } from '@/features/transactions/useTransactionQuickView';
-import { colors, radius, spacing } from '@/theme';
+import { makeStyles, radius, spacing, useColors } from '@/theme';
 
 export default function OverviewScreen() {
+  const styles = useStyles();
+  const colors = useColors();
   const router = useRouter();
   const { data, loading, refreshing, error, refresh, retry, reload } = useDashboard();
   const quickView = useTransactionQuickView(reload);
@@ -35,20 +38,23 @@ export default function OverviewScreen() {
 
     return (
       <>
-        {/* TODO: mở màn hình Thông báo khi đã có */}
         <DashboardHeader
           displayName={data.displayName}
+          avatarUri={data.avatarUri}
           unreadNotifications={data.unreadNotifications}
           onPressProfile={() => router.push('/profile')}
+          onPressNotifications={() => router.push('/notifications')}
         />
 
         <BalanceCard
           totalBalance={data.totalBalance}
-          walletCount={data.wallets.length}
+          walletCount={data.walletCount}
           month={data.month}
           monthIncome={data.monthIncome}
           monthExpense={data.monthExpense}
         />
+
+        <BudgetAlertCard alerts={data.budgetAlerts} onPress={() => router.navigate('/advice')} />
 
         {/* Viền xanh nền trắng để tách biệt với thẻ số dư */}
         <Pressable
@@ -115,7 +121,7 @@ export default function OverviewScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   safe: { flex: 1, backgroundColor: colors.screen },
   content: {
     flexGrow: 1,
@@ -150,4 +156,4 @@ const styles = StyleSheet.create({
   errorTitle: { marginTop: spacing.sm, fontSize: 17, fontWeight: '700', color: colors.text },
   errorText: { fontSize: 14, color: colors.textMuted, textAlign: 'center' },
   retry: { marginTop: spacing.md, alignSelf: 'stretch' },
-});
+}));

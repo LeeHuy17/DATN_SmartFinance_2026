@@ -1,23 +1,27 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { useRouter, type Href } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
-import { colors, spacing } from '@/theme';
+import { makeStyles, spacing, useColors } from '@/theme';
 
 type Props = {
   title: string;
   /** Nơi quay về khi không có màn hình trước (mở thẳng đường dẫn trên web) */
   fallbackHref?: Href;
+  /** Thay cách quay lại mặc định (vd. hỏi trước khi bỏ thay đổi chưa lưu) */
+  onBack?: () => void;
 };
 
 /** Thanh tiêu đề: nút quay lại bên trái, tiêu đề ở giữa */
-export function ScreenHeader({ title, fallbackHref = '/' }: Props) {
+export function ScreenHeader({ title, fallbackHref = '/', onBack }: Props) {
+  const styles = useStyles();
+  const colors = useColors();
   const router = useRouter();
 
   return (
     <View style={styles.header}>
       <Pressable
-        onPress={() => (router.canGoBack() ? router.back() : router.replace(fallbackHref))}
+        onPress={onBack ?? (() => (router.canGoBack() ? router.back() : router.replace(fallbackHref)))}
         hitSlop={12}
         accessibilityRole="button"
         accessibilityLabel="Quay lại"
@@ -32,7 +36,7 @@ export function ScreenHeader({ title, fallbackHref = '/' }: Props) {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -41,4 +45,4 @@ const styles = StyleSheet.create({
   },
   title: { flex: 1, textAlign: 'center', fontSize: 18, fontWeight: '700', color: colors.text },
   spacer: { width: 26 },
-});
+}));

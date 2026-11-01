@@ -1,9 +1,7 @@
-import { Text, View } from 'react-native';
+import { Redirect } from 'expo-router';
 
-export default function ScanScreen() {
-  return (
-    <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-      <Text>UI-02 Quét hóa đơn</Text>
-    </View>
-  );
+// Tab "Quét" không có màn riêng: nút giữa thanh tab mở thẳng /receipt/scan (toàn màn hình).
+// Route này chỉ còn để mở bằng đường dẫn /scan thì vẫn tới màn quét.
+export default function ScanTab() {
+  return <Redirect href="/receipt/scan" />;
 }

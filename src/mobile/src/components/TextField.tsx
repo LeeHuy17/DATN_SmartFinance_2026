@@ -1,18 +1,18 @@
-import { forwardRef, useState } from 'react';
+import { forwardRef, useState, type ReactNode } from 'react';
 import {
   Platform,
   Pressable,
-  StyleSheet,
   Text,
   TextInput,
   View,
   type TextInputProps,
   type TextStyle,
+  TextInputInstance,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 import { FieldError } from '@/components/FieldError';
-import { colors, radius, spacing } from '@/theme';
+import { makeStyles, radius, spacing, useColors } from '@/theme';
 
 type Props = TextInputProps & {
   label: string;
@@ -22,18 +22,25 @@ type Props = TextInputProps & {
   hint?: string;
   /** Hiện nút con mắt để ẩn/hiện mật khẩu (dùng cùng secureTextEntry) */
   passwordToggle?: boolean;
+  /** Nội dung nhỏ bên phải nhãn (vd. "Đã sửa") */
+  labelAccessory?: ReactNode;
 };
 
-export const TextField = forwardRef<TextInput, Props>(function TextField(
-  { label, error, hint, passwordToggle, secureTextEntry, style, onFocus, onBlur, ...inputProps },
+export const TextField = forwardRef<TextInputInstance, Props>(function TextField(
+  { label, error, hint, passwordToggle, labelAccessory, secureTextEntry, style, onFocus, onBlur, ...inputProps },
   ref,
 ) {
+  const styles = useStyles();
+  const colors = useColors();
   const [focused, setFocused] = useState(false);
   const [revealed, setRevealed] = useState(false);
 
   return (
     <View style={styles.field}>
-      <Text style={styles.label}>{label}</Text>
+      <View style={styles.labelRow}>
+        <Text style={styles.label}>{label}</Text>
+        {labelAccessory}
+      </View>
       <View>
         <TextInput
           ref={ref}
@@ -88,10 +95,10 @@ const webNoOutline = Platform.select({
   default: {},
 });
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   field: { marginTop: spacing.md },
+  labelRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.sm },
   label: {
-    marginBottom: spacing.sm,
     fontSize: 13,
     fontWeight: '600',
     color: colors.text,
@@ -123,4 +130,4 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     color: colors.textMuted,
   },
-});
+}));

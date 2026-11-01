@@ -1,0 +1,44 @@
+name: Mobile CI
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop, main]
+
+# Đẩy commit mới lên cùng PR thì huỷ lần chạy cũ
+concurrency:
+  group: mobile-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: src/mobile
+
+jobs:
+  typecheck:
+    name: Typecheck (tsc)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: src/mobile/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+
+  # Không đặt làm required check: chỉ cảnh báo lệch phiên bản với Expo SDK, không chặn merge
+  doctor:
+    name: Expo doctor
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: src/mobile/package-lock.json
+      - run: npm ci
+      - run: npx expo-doctor

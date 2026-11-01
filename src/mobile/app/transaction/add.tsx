@@ -5,7 +5,6 @@ import {
   Platform,
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   View,
 } from 'react-native';
@@ -18,7 +17,8 @@ import { FieldError } from '@/components/FieldError';
 import { PrimaryButton } from '@/components/PrimaryButton';
 import { SegmentedControl } from '@/components/SegmentedControl';
 import { TextField } from '@/components/TextField';
-import { KIND_OPTIONS } from '@/features/transactions/categories';
+import { takeOcrDraft, type OcrDraft } from '@/features/ocr/pendingReceipt';
+import { kindOptions } from '@/features/transactions/categories';
 import { AmountInput } from '@/features/transactions/components/AmountInput';
 import { CategoryGrid } from '@/features/transactions/components/CategoryGrid';
 import { parseDayInput } from '@/features/transactions/filters';
@@ -29,14 +29,24 @@ import {
   listWallets,
   updateTransaction,
 } from '@/features/transactions/transactionsApi';
-import type { Category, CategoryKind, Transaction, Wallet } from '@/features/transactions/types';
+import type {
+  Category,
+  CategoryKind,
+  Transaction,
+  TransactionInput,
+  Wallet,
+} from '@/features/transactions/types';
+import { getFieldErrors } from '@/lib/api/client';
+import { toYmd } from '@/lib/date';
 import { formatFullDate, maskDayInput } from '@/lib/format';
-import { colors, spacing } from '@/theme';
+import { makeStyles, radius, spacing, useColors } from '@/theme';
 
 type Kind = CategoryKind;
 type Errors = { amount?: string; category?: string; date?: string; form?: string };
 
 export default function AddTransactionScreen() {
+  const styles = useStyles();
+  const colors = useColors();
   const router = useRouter();
   // Có id = sửa giao dịch (mở từ nút "Sửa" trong khung xem nhanh)
   const { id } = useLocalSearchParams<{ id?: string }>();
@@ -56,6 +66,8 @@ export default function AddTransactionScreen() {
   const [note, setNote] = useState('');
   const [errors, setErrors] = useState<Errors>({});
   const [saving, setSaving] = useState(false);
+  // Dữ liệu đọc được từ hóa đơn (mở từ màn Xem trước hóa đơn)
+  const [ocr, setOcr] = useState<OcrDraft | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -75,6 +87,13 @@ export default function AddTransactionScreen() {
         }
       } else {
         setWalletId(ws[0]?.id ?? null);
+        const draft = takeOcrDraft();
+        if (draft) {
+          setOcr(draft);
+          if (draft.total) setAmount(draft.total);
+          if (draft.date) setDay(formatFullDate(draft.date));
+          if (draft.categoryId) setCategoryId(draft.categoryId);
+        }
       }
       setLoading(false);
     })();
@@ -107,6 +126,8 @@ export default function AddTransactionScreen() {
     const e: Errors = {};
     if (amount <= 0) e.amount = 'Nhập số tiền lớn hơn 0.';
     if (!category) e.category = 'Chọn một danh mục.';
+    // Người dùng mới chưa có ví nào thì không có ví để ghi giao dịch vào
+    if (!walletId) e.form = 'Chưa có ví nào. Hãy thêm ví ở tab Ví trước.';
     const date = parseDayInput(day);
     if (!date) e.date = 'Nhập ngày theo dạng dd/mm/yyyy.';
     else if (date.getTime() > Date.now()) e.date = 'Ngày giao dịch không được ở tương lai.';
@@ -118,35 +139,36 @@ export default function AddTransactionScreen() {
     setErrors(e);
     if (Object.keys(e).length || !date || !category || !walletId) return;
 
-    // Giữ giờ phút: lúc sửa lấy giờ cũ, lúc thêm lấy giờ hiện tại
-    const time = original ? new Date(original.date) : new Date();
-    date.setHours(time.getHours(), time.getMinutes(), 0, 0);
-    if (date.getTime() > Date.now()) date.setTime(Date.now());
-
-    const trimmedNote = note.trim();
-    // Nhập tay không có tên cửa hàng: dùng ghi chú, không có thì dùng tên danh mục.
-    // Khi sửa, giữ tên riêng (vd: tên cửa hàng từ hóa đơn); tên tự sinh thì tạo lại theo dữ liệu mới.
-    const titleWasDerived =
-      original &&
-      (original.title === original.note || original.title === original.category.name);
-    const input = {
-      title: original && !titleWasDerived ? original.title : trimmedNote || category.name,
+    // Loại thu / chi do server suy ra từ danh mục; số tiền luôn dương, ngày theo giờ máy.
+    // Hóa đơn quét được mà không ghi chú thì lưu tên cửa hàng làm ghi chú để còn nhận ra giao dịch.
+    const input: TransactionInput = {
       categoryId: category.id,
       walletId,
-      amount: kind === 'expense' ? -amount : amount,
-      date: date.toISOString(),
-      note: trimmedNote || undefined,
-      source: original?.source ?? ('manual' as const),
+      amount,
+      date: toYmd(date),
+      note: note.trim() || ocr?.merchant?.trim() || '',
+      source: original?.source ?? (ocr ? 'ocr' : 'manual'),
+      // Đính kèm ảnh hóa đơn đã quét vào giao dịch mới
+      receiptId: id ? undefined : ocr?.receiptId,
     };
 
     setSaving(true);
     try {
       if (id) await updateTransaction(id, input);
       else await createTransaction(input);
-      // Tổng quan và Lịch sử tự tải lại khi quay về
-      goBack();
-    } catch {
-      setErrors({ form: 'Không lưu được giao dịch. Vui lòng thử lại.' });
+      // Tổng quan và Lịch sử tự tải lại khi quay về.
+      // Đi từ luồng quét: đóng cả màn quét, về thẳng Tổng quan để thấy giao dịch vừa lưu
+      if (ocr) router.dismissTo('/');
+      else goBack();
+    } catch (err) {
+      // Lỗi 400 theo trường (vd. ví vừa bị lưu trữ, danh mục vừa bị ẩn ở máy khác)
+      const f = getFieldErrors(err);
+      setErrors({
+        amount: f.amount,
+        category: f.category,
+        date: f.date,
+        form: f.wallet ?? f.note ?? f.form ?? (Object.keys(f).length ? undefined : 'Không lưu được giao dịch. Vui lòng thử lại.'),
+      });
     } finally {
       setSaving(false);
     }
@@ -166,7 +188,17 @@ export default function AddTransactionScreen() {
 
     return (
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-        <SegmentedControl options={KIND_OPTIONS} value={kind} onChange={changeKind} />
+        {ocr && (
+          <View style={styles.ocrBanner}>
+            <Ionicons name="scan-outline" size={16} color={colors.primary} style={styles.ocrIcon} />
+            <Text style={styles.ocrText}>
+              {ocr.complete
+                ? `Đã đọc từ hóa đơn${ocr.merchant ? ` ${ocr.merchant}` : ''}. Kiểm tra lại trước khi lưu.`
+                : 'Đã điền phần đọc được từ hóa đơn. Hãy nhập các thông tin còn thiếu.'}
+            </Text>
+          </View>
+        )}
+        <SegmentedControl options={kindOptions(colors)} value={kind} onChange={changeKind} />
 
         <View style={styles.amount}>
           <AmountInput
@@ -274,7 +306,7 @@ export default function AddTransactionScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
   safe: { flex: 1, backgroundColor: colors.screen },
   flex: { flex: 1 },
   header: {
@@ -303,4 +335,14 @@ const styles = StyleSheet.create({
   manageText: { fontSize: 14, fontWeight: '700', color: colors.primary },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   footer: { paddingHorizontal: spacing.lg, paddingTop: spacing.sm, paddingBottom: spacing.md },
-});
+  ocrBanner: {
+    flexDirection: 'row',
+    gap: spacing.sm,
+    marginBottom: spacing.md - 4,
+    padding: spacing.md - 4,
+    borderRadius: radius.md,
+    backgroundColor: colors.primarySoft,
+  },
+  ocrIcon: { marginTop: 1 },
+  ocrText: { flex: 1, fontSize: 13, lineHeight: 19, color: colors.primary },
+}));

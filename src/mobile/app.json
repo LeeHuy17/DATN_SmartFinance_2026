@@ -1,16 +1,29 @@
 {
   "expo": {
-    "name": "Smart Finance",
-    "slug": "smart-finance",
-    "scheme": "smartfinance",
+    "name": "FinBuddy",
+    "slug": "finbuddy",
+    "scheme": "finbuddy",
     "version": "1.0.0",
     "orientation": "portrait",
-    "userInterfaceStyle": "light",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
     "plugins": [
       "expo-router",
       "expo-secure-store",
       "expo-status-bar",
       "expo-localization",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "FinBuddy cần camera để chụp hóa đơn và đọc số tiền giúp bạn."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "FinBuddy cần truy cập ảnh để bạn chọn ảnh hóa đơn có sẵn."
+        }
+      ],
       [
         "expo-splash-screen",
         {
@@ -19,7 +32,8 @@
           "resizeMode": "contain",
           "backgroundColor": "#FFFFFF"
         }
-      ]
+      ],
+      "expo-font"
     ],
     "experiments": {
       "typedRoutes": true

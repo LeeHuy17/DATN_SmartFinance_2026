@@ -6,7 +6,7 @@ import { PrimaryButton } from '@/components/PrimaryButton';
 import { TextField } from '@/components/TextField';
 import { ForgotPasswordLayout } from '@/features/auth/components/ForgotPasswordLayout';
 import { detectIdentifier, normalizeIdentifier } from '@/features/auth/identifier';
-import { requestPasswordReset } from '@/features/auth/passwordResetApi';
+import { PhoneNotSupportedError, requestPasswordReset } from '@/features/auth/passwordResetApi';
 import { spacing } from '@/theme';
 
 export default function ForgotPasswordScreen() {
@@ -26,8 +26,12 @@ export default function ForgotPasswordScreen() {
       const value = normalizeIdentifier(identifier);
       await requestPasswordReset(value);
       router.push({ pathname: '/verify-otp', params: { identifier: value } });
-    } catch {
-      setError('Không gửi được mã xác thực. Vui lòng thử lại sau.');
+    } catch (e) {
+      setError(
+        e instanceof PhoneNotSupportedError
+          ? 'Hiện chỉ hỗ trợ khôi phục mật khẩu qua email. Vui lòng nhập email đã đăng ký.'
+          : 'Không gửi được mã xác thực. Vui lòng thử lại sau.',
+      );
     } finally {
       setSubmitting(false);
     }

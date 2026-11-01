@@ -1,0 +1,73 @@
+name: Backend CI
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop, main]
+
+# Đẩy commit mới lên cùng PR thì huỷ lần chạy cũ
+concurrency:
+  group: backend-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: src/backend
+
+jobs:
+  lint:
+    name: Lint (ruff)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      # Ghim phiên bản để bản ruff mới không làm CI đỏ bất ngờ
+      - run: pip install ruff==0.17.3
+      - run: ruff check --output-format=github .
+
+  test:
+    name: Test (Django + PostgreSQL)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: smartfinance
+          POSTGRES_USER: smartfinance
+          POSTGRES_PASSWORD: ci-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U smartfinance -d smartfinance"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    # Giá trị giả chỉ dùng cho CI; GROQ_API_KEY và EMAIL_HOST_USER để trống nên không gọi dịch vụ ngoài
+    env:
+      DJANGO_SECRET_KEY: ci-insecure-secret-key-only-for-github-actions-0123456789
+      DJANGO_DEBUG: "0"
+      DJANGO_ALLOWED_HOSTS: localhost
+      POSTGRES_DB: smartfinance
+      POSTGRES_USER: smartfinance
+      POSTGRES_PASSWORD: ci-password
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: "5432"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: src/backend/requirements.txt
+      # Bản PyTorch CPU trước (như Dockerfile): easyocr kéo bản CUDA vài GB làm runner hết dung lượng đĩa
+      - run: pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+      - run: pip install -r requirements.txt
+      - name: Django system check
+        run: python manage.py check
+      - name: Kiểm tra quên tạo migration
+        run: python manage.py makemigrations --check --dry-run
+      - name: Chạy test
+        run: python manage.py test --parallel auto

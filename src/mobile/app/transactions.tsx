@@ -1,11 +1,11 @@
-import { useCallback, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import {
   ActivityIndicator,
   FlatList,
   Platform,
   Pressable,
+  RefreshControl,
   ScrollView,
-  StyleSheet,
   Text,
   TextInput,
   View,
@@ -21,18 +21,22 @@ import { TransactionItem } from '@/features/transactions/components/TransactionI
 import {
   DEFAULT_FILTERS,
   TIME_LABELS,
-  applyFilters,
   groupByDay,
   hasAdvancedFilters,
-  sumAmount,
+  toApiFilters,
   type TransactionFilters,
   type TypeFilter,
 } from '@/features/transactions/filters';
-import { listCategories, listTransactions, listWallets } from '@/features/transactions/transactionsApi';
+import {
+  getTransactionSummary,
+  listCategories,
+  listTransactions,
+} from '@/features/transactions/transactionsApi';
 import type { Category, Transaction, Wallet } from '@/features/transactions/types';
 import { useTransactionQuickView } from '@/features/transactions/useTransactionQuickView';
+import * as walletsApi from '@/features/wallets/walletsApi';
 import { formatDayMonth, formatRelativeDay, formatVnd } from '@/lib/format';
-import { colors, radius, spacing } from '@/theme';
+import { makeStyles, radius, spacing, useColors } from '@/theme';
 
 const TYPE_CHIPS: { value: TypeFilter; label: string }[] = [
   { value: 'all', label: 'Tất cả' },
@@ -50,55 +54,142 @@ function dayLabel(date: Date) {
   return relative === dm ? dm : `${relative.toUpperCase()} · ${dm}`;
 }
 
+const PAGE_SIZE = 20;
+const SEARCH_DELAY_MS = 300;
+
 export default function TransactionHistoryScreen() {
+  const styles = useStyles();
+  const colors = useColors();
   const router = useRouter();
-  // Mở từ nút cây bút ở tab Ví: lọc sẵn theo ví để người dùng truy vết và sửa giao dịch sai
+  // Mở từ tab Ví: lọc sẵn theo ví để người dùng truy vết và sửa giao dịch sai
   const params = useLocalSearchParams<{ walletId?: string }>();
-  const [all, setAll] = useState<Transaction[] | null>(null);
+  const [items, setItems] = useState<Transaction[] | null>(null);
+  const [count, setCount] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState(false);
+  const [searchTotal, setSearchTotal] = useState<number | null>(null);
   const [wallets, setWallets] = useState<Wallet[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [query, setQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
   const [filters, setFilters] = useState<TransactionFilters>(() =>
     params.walletId ? { ...DEFAULT_FILTERS, walletIds: [params.walletId] } : DEFAULT_FILTERS,
   );
   const [sheetOpen, setSheetOpen] = useState(false);
 
-  const load = useCallback(async () => {
-    const [list, ws, cs] = await Promise.all([listTransactions(), listWallets(), listCategories('expense')]);
-    setAll(list);
-    setWallets(ws);
-    setCategories(cs);
-  }, []);
+  const page = useRef(1);
+  // Mỗi lần tải lại từ đầu tăng số này; phản hồi của lần tải cũ (bộ lọc cũ) bị bỏ qua
+  const requestId = useRef(0);
 
-  // Tải lại mỗi khi quay về màn hình (vd: sau khi sửa giao dịch)
+  // Chờ người dùng ngừng gõ rồi mới tìm, tránh gọi API theo từng ký tự
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedQuery(query), SEARCH_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [query]);
+
+  const apiFilters = useMemo(() => toApiFilters(filters, debouncedQuery), [filters, debouncedQuery]);
+  const searching = debouncedQuery.trim().length > 0;
+
+  const loadFirstPage = useCallback(async () => {
+    const id = ++requestId.current;
+    setError(false);
+    try {
+      const [first, summary] = await Promise.all([
+        listTransactions({ ...apiFilters, page: 1, page_size: PAGE_SIZE }),
+        apiFilters.search ? getTransactionSummary(apiFilters) : Promise.resolve(null),
+      ]);
+      if (id !== requestId.current) return;
+      page.current = 1;
+      setItems(first.items);
+      setCount(first.count);
+      setHasMore(first.hasMore);
+      setSearchTotal(summary?.net ?? null);
+    } catch {
+      if (id === requestId.current) setError(true);
+    }
+  }, [apiFilters]);
+
+  const loadMore = async () => {
+    if (!hasMore || loadingMore || !items) return;
+    const id = requestId.current;
+    setLoadingMore(true);
+    try {
+      const next = await listTransactions({ ...apiFilters, page: page.current + 1, page_size: PAGE_SIZE });
+      if (id !== requestId.current) return;
+      page.current += 1;
+      // Có giao dịch mới thêm giữa hai lần tải thì trang sau có thể lặp lại vài dòng
+      setItems((prev) => {
+        const seen = new Set(prev?.map((t) => t.id));
+        return [...(prev ?? []), ...next.items.filter((t) => !seen.has(t.id))];
+      });
+      setHasMore(next.hasMore);
+    } catch {
+      // Giữ danh sách đang có; cuộn xuống lần nữa sẽ thử lại
+    } finally {
+      setLoadingMore(false);
+    }
+  };
+
+  const refresh = async () => {
+    setRefreshing(true);
+    await loadFirstPage();
+    setRefreshing(false);
+  };
+
+  // Tải lại khi đổi bộ lọc / từ khóa và mỗi khi quay về màn hình (vd: sau khi sửa giao dịch)
   useFocusEffect(
     useCallback(() => {
-      load();
-    }, [load]),
+      loadFirstPage();
+    }, [loadFirstPage]),
   );
 
-  const quickView = useTransactionQuickView(load);
-
-  const filtered = useMemo(
-    () => (all ? applyFilters(all, filters, query) : []),
-    [all, filters, query],
+  // Ví (kể cả ví đã lưu trữ) và danh mục cho bảng Bộ lọc
+  useFocusEffect(
+    useCallback(() => {
+      Promise.all([walletsApi.list({ includeArchived: true }), listCategories('expense')])
+        .then(([ws, cs]) => {
+          setWallets(ws);
+          setCategories(cs);
+        })
+        .catch(() => undefined);
+    }, []),
   );
-  const groups = useMemo(() => groupByDay(filtered), [filtered]);
-  const searching = query.trim().length > 0;
+
+  const quickView = useTransactionQuickView(loadFirstPage);
+
+  const groups = useMemo(() => groupByDay(items ?? []), [items]);
   const advancedActive = hasAdvancedFilters(filters);
 
   const goBack = () => (router.canGoBack() ? router.back() : router.replace('/'));
 
   const renderList = () => {
-    if (!all) return <ActivityIndicator style={styles.loading} color={colors.primary} />;
-
-    if (filtered.length === 0) {
+    if (error && !items) {
       return (
         <View style={styles.empty}>
-          <Ionicons name="search-outline" size={36} color={colors.textMuted} />
-          <Text style={styles.emptyTitle}>Không có giao dịch phù hợp</Text>
-          <Text style={styles.emptyText}>Thử từ khóa khác hoặc bỏ bớt bộ lọc.</Text>
-          {(searching || advancedActive || filters.type !== 'all') && (
+          <Ionicons name="cloud-offline-outline" size={36} color={colors.textMuted} />
+          <Text style={styles.emptyTitle}>Không tải được giao dịch</Text>
+          <Text style={styles.emptyText}>Kiểm tra kết nối mạng rồi thử lại.</Text>
+          <Pressable onPress={loadFirstPage} hitSlop={8}>
+            <Text style={styles.link}>Thử lại</Text>
+          </Pressable>
+        </View>
+      );
+    }
+
+    if (!items) return <ActivityIndicator style={styles.loading} color={colors.primary} />;
+
+    if (items.length === 0) {
+      const filtered = query.trim().length > 0 || advancedActive || filters.type !== 'all';
+      return (
+        <View style={styles.empty}>
+          <Ionicons name={filtered ? 'search-outline' : 'receipt-outline'} size={36} color={colors.textMuted} />
+          <Text style={styles.emptyTitle}>{filtered ? 'Không có giao dịch phù hợp' : 'Chưa có giao dịch nào'}</Text>
+          <Text style={styles.emptyText}>
+            {filtered ? 'Thử từ khóa khác hoặc bỏ bớt bộ lọc.' : 'Bấm "Nhập Thu/Chi" ở Tổng quan để thêm giao dịch đầu tiên.'}
+          </Text>
+          {filtered && (
             <Pressable
               onPress={() => {
                 setQuery('');
@@ -113,40 +204,40 @@ export default function TransactionHistoryScreen() {
       );
     }
 
-    if (searching) {
-      return (
-        <ScrollView contentContainerStyle={styles.listContent} keyboardShouldPersistTaps="handled">
-          <Text style={styles.resultCount}>
-            {filtered.length} kết quả cho “{query.trim()}”
-          </Text>
-          <Group title="KẾT QUẢ" total={sumAmount(filtered)}>
-            {filtered.map((t, i) => (
-              <TransactionItem
-                key={t.id}
-                item={t}
-                when="date"
-                divider={i < filtered.length - 1}
-                onPress={quickView.open}
-              />
-            ))}
-          </Group>
-        </ScrollView>
-      );
-    }
-
     return (
       <FlatList
         data={groups}
         keyExtractor={(g) => g.key}
         contentContainerStyle={styles.listContent}
         keyboardShouldPersistTaps="handled"
+        onEndReached={loadMore}
+        onEndReachedThreshold={0.5}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={refresh}
+            tintColor={colors.primary}
+            colors={[colors.primary]}
+          />
+        }
+        ListHeaderComponent={
+          searching ? (
+            <Text style={styles.resultCount}>
+              {count} kết quả cho “{debouncedQuery.trim()}”
+              {searchTotal !== null && ` · ${formatTotal(searchTotal)}`}
+            </Text>
+          ) : undefined
+        }
+        ListFooterComponent={
+          loadingMore ? <ActivityIndicator style={styles.loadingMore} color={colors.primary} /> : undefined
+        }
         renderItem={({ item: g }) => (
           <Group title={dayLabel(g.date)} total={g.total}>
             {g.items.map((t, i) => (
               <TransactionItem
                 key={t.id}
                 item={t}
-                when="time"
+                when="none"
                 divider={i < g.items.length - 1}
                 onPress={quickView.open}
               />
@@ -168,18 +259,18 @@ export default function TransactionHistoryScreen() {
       </View>
 
       <View style={styles.searchRow}>
-        <View style={[styles.search, searching && styles.searchActive]}>
+        <View style={[styles.search, query.trim().length > 0 && styles.searchActive]}>
           <Ionicons name="search-outline" size={18} color={colors.textMuted} />
           <TextInput
             style={styles.searchInput}
             value={query}
             onChangeText={setQuery}
-            placeholder="Tìm theo tên, ghi chú, số tiền"
+            placeholder="Tìm theo ghi chú, danh mục"
             placeholderTextColor={colors.textMuted}
             returnKeyType="search"
             autoCorrect={false}
           />
-          {searching && (
+          {query.length > 0 && (
             <Pressable onPress={() => setQuery('')} hitSlop={8} accessibilityLabel="Xóa từ khóa">
               <Ionicons name="close" size={18} color={colors.textMuted} />
             </Pressable>
@@ -264,6 +355,7 @@ export default function TransactionHistoryScreen() {
 }
 
 function Group({ title, total, children }: { title: string; total: number; children: ReactNode }) {
+  const styles = useStyles();
   return (
     <View style={styles.group}>
       <View style={styles.groupHeader}>
@@ -281,7 +373,8 @@ const webNoOutline = Platform.select({
   default: {},
 });
 
-const styles = StyleSheet.create({
+const useStyles = makeStyles((colors) => ({
+  loadingMore: { marginVertical: spacing.md },
   safe: { flex: 1, backgroundColor: colors.screen },
   header: {
     flexDirection: 'row',
@@ -367,4 +460,4 @@ const styles = StyleSheet.create({
   emptyTitle: { marginTop: spacing.xs, fontSize: 16, fontWeight: '700', color: colors.text },
   emptyText: { fontSize: 14, color: colors.textMuted, textAlign: 'center' },
   link: { marginTop: spacing.sm, fontSize: 14, fontWeight: '700', color: colors.primary },
-});
+}));

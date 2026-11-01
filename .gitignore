@@ -8,3 +8,17 @@ node_modules/
 .expo/
 .env
 expo-env.d.ts
+
+# Backend (Django)
+venv/
+.venv/
+__pycache__/
+*.pyc
+staticfiles/
+
+# Ảnh người dùng tải lên
+media/
+
+# Mô hình OCR tải về và ảnh hóa đơn dùng để đo độ chính xác
+ocr_models/
+eval/

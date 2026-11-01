@@ -1,0 +1,21 @@
+# Bí mật và môi trường cục bộ
+.env
+.git
+venv/
+.venv/
+
+# File sinh ra khi chạy (dùng **/ để khớp cả thư mục con)
+**/__pycache__/
+**/*.py[co]
+.ruff_cache/
+staticfiles/
+media/
+ocr_models/
+
+# Ảnh hóa đơn thật để đánh giá OCR, không được đưa vào image
+eval/
+
+# Cấu hình Docker không cần nằm trong image
+Dockerfile
+.dockerignore
+docker-compose*.yml

@@ -1,0 +1,21 @@
+from django.conf import settings
+from django.conf.urls.static import static
+from django.contrib import admin
+from django.urls import include, path
+
+admin.site.index_title = "Tổng quan"
+
+urlpatterns = [
+    path("admin/", admin.site.urls),
+    path("api/auth/", include("accounts.urls")),
+    path("api/", include("categories.urls")),
+    path("api/", include("wallets.urls")),
+    path("api/", include("transactions.urls")),
+    path("api/", include("budgets.urls")),
+    path("api/", include("reports.urls")),
+    path("api/", include("notifications.urls")),
+    path("api/", include("advisor.urls")),
+    path("api/", include("receipts.urls")),
+]
+
+urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

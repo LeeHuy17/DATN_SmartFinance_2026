@@ -1,34 +1,41 @@
-import * as store from '@/features/transactions/mockStore';
+import { listBudgetAlerts } from '@/features/budgets/budgetsApi';
+import { getSettings, getUnreadCount } from '@/features/notifications/notificationsApi';
+import { getProfile, shortName } from '@/features/profile/profileStore';
+import { getTransactionSummary, listTransactions } from '@/features/transactions/transactionsApi';
+import * as walletsApi from '@/features/wallets/walletsApi';
+import { toYmd } from '@/lib/date';
 import type { DashboardData } from './types';
-
-// TODO: thay hàm giả lập bằng apiFetch khi backend có endpoint tổng quan.
-// Giữ nguyên chữ ký hàm để màn hình không phải sửa.
 
 /** Số giao dịch gần nhất hiển thị ở Tổng quan */
 export const RECENT_LIMIT = 5;
 
-const fakeDelay = (ms = 1200) => new Promise((resolve) => setTimeout(resolve, ms));
-
 export async function getDashboard(): Promise<DashboardData> {
-  await fakeDelay();
-  const wallets = store.getWallets();
-  const all = store.getAll();
-
-  // Thu / chi của tháng hiện tại, tính từ giao dịch
   const now = new Date();
-  const thisMonth = all.filter((t) => {
-    const d = new Date(t.date);
-    return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
-  });
+  const [profile, wallets, summary, recent, month, budgetAlerts, unread] = await Promise.all([
+    getProfile(),
+    walletsApi.list(),
+    walletsApi.getSummary(),
+    listTransactions({ page_size: RECENT_LIMIT }),
+    getTransactionSummary({ date_from: toYmd(new Date(now.getFullYear(), now.getMonth(), 1)) }),
+    // Lỗi ngân sách không làm hỏng cả trang chủ, chỉ ẩn thẻ cảnh báo
+    listBudgetAlerts().catch(() => []),
+    getUnreadCount().catch(() => 0),
+    // Nạp sẵn cài đặt thông báo để banner biết người dùng đã tắt loại nào
+    getSettings().catch(() => null),
+  ]);
 
   return {
-    displayName: 'Văn An',
-    unreadNotifications: 3,
-    totalBalance: wallets.reduce((sum, w) => sum + w.balance, 0),
+    displayName: shortName(profile.fullName, profile.email),
+    avatarUri: profile.avatarUri,
+    // Chuông: số thông báo chưa đọc trong Hộp thư (cảnh báo ngân sách cũng được lưu vào đó)
+    unreadNotifications: unread,
+    budgetAlerts,
+    totalBalance: summary.totalBalance,
+    walletCount: summary.walletCount,
     month: now.getMonth() + 1,
-    monthIncome: thisMonth.filter((t) => t.amount > 0).reduce((s, t) => s + t.amount, 0),
-    monthExpense: thisMonth.filter((t) => t.amount < 0).reduce((s, t) => s - t.amount, 0),
+    monthIncome: month.income,
+    monthExpense: month.expense,
     wallets,
-    recentTransactions: all.slice(0, RECENT_LIMIT),
+    recentTransactions: recent.items,
   };
 }

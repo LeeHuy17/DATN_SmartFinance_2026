@@ -1,0 +1,62 @@
+{% extends "admin/base.html" %}
+{% load i18n unfold %}
+
+{# Trang Tổng quan; số liệu lấy từ config/admin_dashboard.py #}
+
+{% block title %}{{ title }} | {{ site_title }}{% endblock %}
+
+{% block branding %}
+    {% include "unfold/helpers/site_branding.html" %}
+{% endblock %}
+
+{% block content %}
+    <div class="sf-dashboard">
+        <div class="sf-kpis">
+            {% for kpi in kpis %}
+                {% capture as kpi_footer silent %}
+                    <span class="text-xs">
+                        {% if kpi.change is not None %}
+                            <strong class="{% if kpi.change >= 0 %}sf-up{% else %}sf-down{% endif %}">
+                                {% if kpi.change >= 0 %}+{% endif %}{{ kpi.change }}%
+                            </strong>
+                        {% endif %}
+                        {{ kpi.footer }}
+                    </span>
+                {% endcapture %}
+                {% component "unfold/components/card.html" with href=kpi.href footer=kpi_footer %}
+                    <div class="flex items-center justify-between gap-4">
+                        <div>
+                            {% component "unfold/components/text.html" %}{{ kpi.title }}{% endcomponent %}
+                            {% component "unfold/components/title.html" with class="sf-kpi-value" %}{{ kpi.value }}{% endcomponent %}
+                        </div>
+                        <span class="material-symbols-outlined sf-kpi-icon">{{ kpi.icon }}</span>
+                    </div>
+                {% endcomponent %}
+            {% endfor %}
+        </div>
+
+        {% capture as chart_legend silent %}
+            <div class="sf-legend">
+                <span><i class="sf-dot sf-dot-income"></i>Thu</span>
+                <span><i class="sf-dot sf-dot-expense"></i>Chi</span>
+            </div>
+        {% endcapture %}
+        {% component "unfold/components/card.html" with title="Thu chi theo ngày" description=chart_description action=chart_legend %}
+            {% component "unfold/components/chart/bar.html" with data=chart_data height=300 %}{% endcomponent %}
+        {% endcomponent %}
+
+        <div class="sf-columns">
+            {% component "unfold/components/card.html" with title="Danh mục chi nhiều nhất tháng này" %}
+                {% if top_categories.rows %}
+                    {% component "unfold/components/table.html" with table=top_categories card_included=1 striped=1 %}{% endcomponent %}
+                {% else %}
+                    {% component "unfold/components/text.html" %}Chưa có khoản chi nào trong tháng.{% endcomponent %}
+                {% endif %}
+            {% endcomponent %}
+
+            {% component "unfold/components/card.html" with title="Người dùng mới" %}
+                {% component "unfold/components/table.html" with table=recent_users card_included=1 striped=1 %}{% endcomponent %}
+            {% endcomponent %}
+        </div>
+    </div>
+{% endblock %}

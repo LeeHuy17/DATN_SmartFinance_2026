@@ -1,0 +1,17 @@
+services:
+  db:
+    ports:
+      - "5432:5432"
+  web:
+    command: >
+      sh -c "echo '' &&
+             echo '  Admin: http://localhost:8000/admin/' &&
+             echo '  API:   http://localhost:8000/api/auth/' &&
+             echo '' &&
+             exec python manage.py runserver 0.0.0.0:8000"
+    volumes:
+      - .:/app
+  scheduler:
+    # Dùng code đang sửa; sửa xong chạy "docker compose restart scheduler" để nạp lại
+    volumes:
+      - .:/app
