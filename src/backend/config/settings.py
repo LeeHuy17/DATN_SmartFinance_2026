@@ -10,6 +10,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.environ["DJANGO_SECRET_KEY"]
 DEBUG = os.environ.get("DJANGO_DEBUG", "0") == "1"
 ALLOWED_HOSTS = [h for h in os.environ.get("DJANGO_ALLOWED_HOSTS", "").split(",") if h]
+# Domain HTTPS khi deploy (vd https://finbuddy.eastasia.cloudapp.azure.com), cần để đăng nhập trang admin không lỗi CSRF
+CSRF_TRUSTED_ORIGINS = [o for o in os.environ.get("DJANGO_CSRF_TRUSTED_ORIGINS", "").split(",") if o]
+# Chỉ bật khi chạy sau proxy HTTPS (Caddy trên VM): proxy chuyển tiếp bằng HTTP kèm X-Forwarded-Proto,
+# thiếu dòng này thì URL ảnh trả về là http:// và app Android chặn tải
+if os.environ.get("DJANGO_BEHIND_HTTPS_PROXY", "0") == "1":
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 INSTALLED_APPS = [
     # Giao diện admin, phải đặt trước django.contrib.admin để ghi đè template

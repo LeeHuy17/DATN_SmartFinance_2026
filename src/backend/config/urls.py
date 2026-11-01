@@ -1,7 +1,7 @@
 from django.conf import settings
-from django.conf.urls.static import static
 from django.contrib import admin
-from django.urls import include, path
+from django.urls import include, path, re_path
+from django.views.static import serve
 
 admin.site.index_title = "Tổng quan"
 
@@ -18,4 +18,8 @@ urlpatterns = [
     path("api/", include("receipts.urls")),
 ]
 
-urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+# Phục vụ ảnh người dùng tải lên (avatar, hóa đơn) cả khi DEBUG=0. Helper static() của Django
+# chỉ chạy lúc DEBUG nên khi deploy ảnh sẽ 404; lưu lượng đồ án nhỏ nên để Django phục vụ là đủ.
+urlpatterns += [
+    re_path(r"^media/(?P<path>.*)$", serve, {"document_root": settings.MEDIA_ROOT}),
+]

@@ -125,6 +125,8 @@ docker pull ghcr.io/leehuy17/finbuddy-backend:latest
 
 Tag có sẵn: `latest` (bản mới nhất trên `main`), `sha-<commit>`, và `1.2.3` / `1.2` khi phát hành bằng tag `v1.2.3`.
 
+Sau khi đẩy image, job `Deploy to Azure VM` SSH vào VM và chạy bản mới (PostgreSQL chạy cùng VM, HTTPS qua Caddy). Hướng dẫn thiết lập: [docs/deploy-azure.md](docs/deploy-azure.md).
+
 ## Quy trình làm việc với Git
 
 - `main`: bản ổn định để phát hành
@@ -136,5 +138,6 @@ Commit message theo [Conventional Commits](https://www.conventionalcommits.org/)
 ## Tài liệu
 
 - Đặc tả yêu cầu: [docs/src/](docs/src/) (PRD, SRS)
+- Deploy backend lên Azure VM: [docs/deploy-azure.md](docs/deploy-azure.md)
 - Sơ đồ ERD, class, use case: [docs/diagrams/](docs/diagrams/) (mở bằng draw.io)
 - Thiết kế giao diện: [designs/](designs/)

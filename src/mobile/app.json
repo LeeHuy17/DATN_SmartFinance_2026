@@ -7,6 +7,9 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
+    "android": {
+      "package": "com.leehuy17.finbuddy"
+    },
     "plugins": [
       "expo-router",
       "expo-secure-store",
