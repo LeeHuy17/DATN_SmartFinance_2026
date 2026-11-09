@@ -47,6 +47,8 @@ services:
     depends_on:
       web:
         condition: service_healthy
+    volumes:
+      - media_data:/app/media
     command: >
       sh -c "while true; do
                python manage.py send_scheduled_notifications;
