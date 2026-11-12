@@ -78,6 +78,20 @@ export default function WalletsScreen() {
           <Text style={styles.muted}>{meta}</Text>
         </View>
         <Text style={[styles.balance, w.isArchived && styles.mutedText]}>{formatBalance(w.balance)}</Text>
+        {!w.isArchived && (
+          <Pressable
+            style={styles.transferButton}
+            onPress={() => router.push({
+              pathname: '/transaction/add',
+              params: { mode: 'transfer', fromWalletId: w.id },
+            })}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={`Chuyển tiền từ ví ${w.name}`}
+          >
+            <Ionicons name="swap-horizontal" size={18} color={colors.walletBank} />
+          </Pressable>
+        )}
         <Ionicons name="chevron-forward" size={18} color={colors.border} />
       </Pressable>
     );
@@ -101,6 +115,14 @@ export default function WalletsScreen() {
           <Text style={styles.totalValue} numberOfLines={1} adjustsFontSizeToFit>
             {formatBalance(summary.totalBalance)}
           </Text>
+          <Pressable
+            style={styles.totalTransfer}
+            onPress={() => router.push({ pathname: '/transaction/add', params: { mode: 'transfer' } })}
+            accessibilityRole="button"
+          >
+            <Ionicons name="swap-horizontal" size={17} color={colors.onPrimary} />
+            <Text style={styles.totalTransferText}>Chuyển tiền</Text>
+          </Pressable>
         </View>
 
         {active.length === 0 ? (
@@ -217,6 +239,18 @@ const useStyles = makeStyles((colors) => ({
   },
   totalLabel: { fontSize: 13, color: colors.onPrimary, opacity: 0.85 },
   totalValue: { marginTop: spacing.xs, fontSize: 26, fontWeight: '800', color: colors.onPrimary },
+  totalTransfer: {
+    alignSelf: 'flex-start',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    marginTop: spacing.sm,
+    paddingHorizontal: spacing.md - 4,
+    paddingVertical: spacing.xs + 2,
+    borderRadius: radius.md,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+  },
+  totalTransferText: { fontSize: 13, fontWeight: '700', color: colors.onPrimary },
   empty: { marginTop: spacing.md, fontSize: 14, lineHeight: 20, color: colors.textMuted },
   errorBox: { marginTop: spacing.md, alignItems: 'center' },
   errorText: { fontSize: 14, lineHeight: 20, color: colors.textMuted, textAlign: 'center' },
@@ -242,6 +276,14 @@ const useStyles = makeStyles((colors) => ({
   muted: { marginTop: 2, fontSize: 12, color: colors.textMuted },
   mutedText: { color: colors.textMuted },
   balance: { fontSize: 15, fontWeight: '800', color: colors.text },
+  transferButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.infoSoft,
+  },
   archivedToggle: {
     flexDirection: 'row',
     alignItems: 'center',

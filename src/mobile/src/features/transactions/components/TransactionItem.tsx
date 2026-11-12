@@ -3,7 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { categoryTint } from '@/features/transactions/categories';
 import type { Transaction } from '@/features/transactions/types';
-import { formatDayMonth, formatRelativeDay, formatSignedVnd } from '@/lib/format';
+import { formatDayMonth, formatRelativeDay, formatSignedVnd, formatVnd } from '@/lib/format';
 import { makeStyles, radius, spacing, useTheme } from '@/theme';
 
 type Props = {
@@ -21,6 +21,7 @@ export function TransactionItem({ item, onPress, when = 'relative', divider }: P
   const styles = useStyles();
   const { colors, isDark } = useTheme();
   const { category } = item;
+  const transfer = item.kind === 'transfer';
   const income = item.amount > 0;
   const whenText =
     when === 'none' ? null : when === 'date' ? formatDayMonth(item.date) : formatRelativeDay(item.date);
@@ -30,7 +31,7 @@ export function TransactionItem({ item, onPress, when = 'relative', divider }: P
       style={({ pressed }) => [styles.row, divider && styles.divider, pressed && styles.pressed]}
       onPress={onPress && (() => onPress(item))}
       accessibilityRole="button"
-      accessibilityLabel={`${item.title}, ${formatSignedVnd(item.amount)}`}
+      accessibilityLabel={`${item.title}, ${transfer && !item.transferDirection ? formatVnd(item.amount) : formatSignedVnd(item.amount)}`}
     >
       <View style={[styles.icon, { backgroundColor: categoryTint(category.color, isDark).bg }]}>
         <Ionicons name={category.icon} size={20} color={categoryTint(category.color, isDark).fg} />
@@ -41,12 +42,14 @@ export function TransactionItem({ item, onPress, when = 'relative', divider }: P
           {item.title}
         </Text>
         <Text style={styles.meta}>
-          {[category.name, item.walletName, whenText].filter(Boolean).join(' · ')}
+          {transfer
+            ? ['Chuyển khoản', whenText].filter(Boolean).join(' · ')
+            : [category.name, item.walletName, whenText].filter(Boolean).join(' · ')}
         </Text>
       </View>
 
-      <Text style={[styles.amount, { color: income ? colors.primary : colors.expense }]}>
-        {formatSignedVnd(item.amount)}
+      <Text style={[styles.amount, { color: transfer ? colors.textMuted : income ? colors.primary : colors.expense }]}>
+        {transfer && !item.transferDirection ? formatVnd(item.amount) : formatSignedVnd(item.amount)}
       </Text>
     </Pressable>
   );

@@ -110,7 +110,7 @@ export function groupByDay(list: Transaction[]): DayGroup[] {
       groups.push(g);
     }
     g.items.push(t);
-    g.total += t.amount;
+    if (t.kind !== 'transfer') g.total += t.amount;
   }
   return groups;
 }
