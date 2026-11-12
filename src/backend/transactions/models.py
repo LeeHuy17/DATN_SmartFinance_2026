@@ -10,6 +10,7 @@ class Transaction(models.Model):
     class Kind(models.TextChoices):
         INCOME = "income", "Thu"
         EXPENSE = "expense", "Chi"
+        TRANSFER = "transfer", "Chuyển khoản"
 
     class Source(models.TextChoices):
         MANUAL = "manual", "Nhập tay"
@@ -24,10 +25,19 @@ class Transaction(models.Model):
         "wallets.Wallet", on_delete=models.RESTRICT, related_name="transactions"
     )
     category = models.ForeignKey(
-        "categories.Category", on_delete=models.RESTRICT, related_name="transactions"
+        "categories.Category", null=True, blank=True,
+        on_delete=models.RESTRICT, related_name="transactions",
+    )
+    to_wallet = models.ForeignKey(
+        "wallets.Wallet", null=True, blank=True, on_delete=models.RESTRICT,
+        related_name="received_transfers",
+    )
+    fee = models.DecimalField(max_digits=18, decimal_places=2, default=Decimal("0"))
+    transfer_parent = models.ForeignKey(
+        "self", null=True, blank=True, on_delete=models.CASCADE, related_name="fee_items"
     )
     # Luôn lấy theo category, xem save()
-    kind = models.CharField(max_length=7, choices=Kind.choices, editable=False)
+    kind = models.CharField(max_length=8, choices=Kind.choices, editable=False)
     amount = models.DecimalField(
         max_digits=18, decimal_places=2, validators=[MinValueValidator(Decimal("0.01"))]
     )
@@ -52,9 +62,15 @@ class Transaction(models.Model):
         ]
 
     def save(self, *args, **kwargs):
-        self.kind = self.category.kind
+        if self.transfer_parent_id:
+            self.kind = self.category.kind
+        elif self.to_wallet_id:
+            self.kind = self.Kind.TRANSFER
+            self.category = None
+        else:
+            self.kind = self.category.kind
         update_fields = kwargs.get("update_fields")
-        if update_fields is not None and "category" in update_fields:
+        if update_fields is not None and {"category", "to_wallet"} & set(update_fields):
             kwargs["update_fields"] = {*update_fields, "kind"}
         super().save(*args, **kwargs)
 
