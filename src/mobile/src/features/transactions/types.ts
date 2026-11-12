@@ -18,6 +18,7 @@ export type Wallet = {
 };
 
 export type CategoryKind = 'expense' | 'income';
+export type TransactionKind = CategoryKind | 'transfer';
 export type IconName = keyof typeof Ionicons.glyphMap;
 
 export type Category = {
@@ -40,11 +41,17 @@ export type TransactionSource = 'ocr' | 'manual';
 /** Giao dịch để hiển thị, quy đổi từ dữ liệu server (xem transactionsApi.ts) */
 export type Transaction = {
   id: string;
+  kind: TransactionKind;
   /** Tên hiển thị: ghi chú, không có thì tên danh mục */
   title: string;
   category: CategoryRef;
   walletId: string;
   walletName: string;
+  toWalletId?: string;
+  toWalletName?: string;
+  fee?: number;
+  /** Chỉ có khi xem lịch sử của một ví cụ thể */
+  transferDirection?: 'incoming' | 'outgoing';
   /** Số nguyên đồng; âm là chi, dương là thu */
   amount: number;
   /** ISO 8601, lúc 0h của ngày giao dịch theo giờ máy (server chỉ lưu ngày, không có giờ) */
@@ -59,8 +66,10 @@ export type Transaction = {
 
 /** Dữ liệu gửi lên khi tạo / sửa giao dịch. Loại thu / chi do server tự suy ra từ danh mục */
 export type TransactionInput = {
-  categoryId: string;
+  categoryId?: string;
   walletId: string;
+  toWalletId?: string;
+  fee?: number;
   /** Số nguyên đồng, luôn dương */
   amount: number;
   /** YYYY-MM-DD theo giờ máy (lib/date.ts → toYmd) */

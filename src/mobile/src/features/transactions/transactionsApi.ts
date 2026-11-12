@@ -7,7 +7,7 @@ import { fromYmd } from '@/lib/date';
 import { parseMoney, toMoneyString } from '@/lib/money';
 import { resolveIcon } from './categories';
 import { qs, type TransactionFilters } from './transactionQuery';
-import type { CategoryKind, Transaction, TransactionInput, TransactionSource, Wallet } from './types';
+import type { CategoryKind, Transaction, TransactionInput, TransactionKind, TransactionSource, Wallet } from './types';
 
 export {
   getTransactionSummary,
@@ -21,13 +21,16 @@ export type ApiTransaction = {
   id: number;
   wallet: number;
   wallet_name: string;
-  category: number;
-  category_name: string;
-  category_icon: string;
-  category_color: string;
-  kind: CategoryKind;
+  category: number | null;
+  category_name: string | null;
+  category_icon: string | null;
+  category_color: string | null;
+  kind: TransactionKind;
   /** Decimal dạng chuỗi, luôn dương */
   amount: string;
+  to_wallet: number | null;
+  to_wallet_name: string | null;
+  fee: string;
   note: string;
   source: TransactionSource;
   /** YYYY-MM-DD */
@@ -44,21 +47,32 @@ export type Page<T> = { count: number; next: string | null; previous: string | n
 
 // ---------- Quy đổi sang kiểu hiển thị ----------
 
-const toTransaction = (t: ApiTransaction): Transaction => {
+const toTransaction = (t: ApiTransaction, walletFilter?: string): Transaction => {
   const amount = parseMoney(t.amount);
+  const transferDirection =
+    t.kind === 'transfer' && walletFilter === String(t.wallet)
+      ? 'outgoing'
+      : t.kind === 'transfer' && walletFilter === String(t.to_wallet)
+        ? 'incoming'
+        : undefined;
   return {
     id: String(t.id),
-    title: t.note || t.category_name,
+    kind: t.kind,
+    title: t.kind === 'transfer' ? `${t.wallet_name} → ${t.to_wallet_name}` : t.note || t.category_name || '',
     note: t.note || undefined,
     category: {
-      id: String(t.category),
-      name: t.category_name,
-      color: t.category_color,
-      icon: resolveIcon(t.category_icon),
+      id: t.category === null ? '' : String(t.category),
+      name: t.category_name ?? 'Chuyển khoản',
+      color: t.category_color ?? '#2F6FB5',
+      icon: resolveIcon(t.category_icon ?? 'swap-horizontal'),
     },
     walletId: String(t.wallet),
     walletName: t.wallet_name,
-    amount: t.kind === 'expense' ? -amount : amount,
+    toWalletId: t.to_wallet === null ? undefined : String(t.to_wallet),
+    toWalletName: t.to_wallet_name ?? undefined,
+    fee: parseMoney(t.fee),
+    transferDirection,
+    amount: t.kind === 'expense' || transferDirection === 'outgoing' ? -amount : amount,
     date: fromYmd(t.date).toISOString(),
     source: t.source,
     receiptImageUrl: t.receipt_image_url ?? undefined,
@@ -70,7 +84,9 @@ const toBody = (input: Partial<TransactionInput>) =>
   JSON.stringify({
     wallet: input.walletId === undefined ? undefined : Number(input.walletId),
     category: input.categoryId === undefined ? undefined : Number(input.categoryId),
+    to_wallet: input.toWalletId === undefined ? undefined : Number(input.toWalletId),
     amount: input.amount === undefined ? undefined : toMoneyString(input.amount),
+    fee: input.fee === undefined ? undefined : toMoneyString(input.fee),
     note: input.note,
     date: input.date,
     source: input.source,
@@ -92,7 +108,12 @@ export type TransactionPage = {
  */
 export async function listTransactions(filters: TransactionFilters = {}): Promise<TransactionPage> {
   const data = await apiFetch<Page<ApiTransaction>>(`/transactions/?${qs(filters)}`);
-  return { items: data.results.map(toTransaction), count: data.count, hasMore: data.next !== null };
+  const walletFilter = filters.wallet?.includes(',') ? undefined : filters.wallet;
+  return {
+    items: data.results.map((t) => toTransaction(t, walletFilter)),
+    count: data.count,
+    hasMore: data.next !== null,
+  };
 }
 
 /** Mọi giao dịch khớp bộ lọc (gom nhiều trang), dùng cho báo cáo / tư vấn tính ở app */

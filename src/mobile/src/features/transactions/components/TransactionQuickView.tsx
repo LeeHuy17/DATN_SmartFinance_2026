@@ -4,7 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { categoryTint } from '@/features/transactions/categories';
 import type { Transaction } from '@/features/transactions/types';
-import { formatFullDate, formatSignedVnd } from '@/lib/format';
+import { formatFullDate, formatSignedVnd, formatVnd } from '@/lib/format';
 import { makeStyles, radius, spacing, useTheme } from '@/theme';
 
 type Props = {
@@ -25,6 +25,7 @@ export function TransactionQuickView({ transaction, onClose, onEdit, onDelete }:
   const [shown, setShown] = useState<Transaction | null>(null);
   if (transaction && transaction !== shown) setShown(transaction);
   const t = transaction ?? shown;
+  const transfer = t?.kind === 'transfer';
 
   const handleDelete = async () => {
     if (!t) return;
@@ -51,17 +52,25 @@ export function TransactionQuickView({ transaction, onClose, onEdit, onDelete }:
               </Pressable>
             </View>
 
-            <Text style={styles.category}>{t.category.name}</Text>
+            <Text style={styles.category}>{transfer ? 'Chuyển khoản' : t.category.name}</Text>
             <Text style={styles.title}>{t.title}</Text>
-            <Text style={[styles.amount, { color: t.amount > 0 ? colors.primary : colors.expense }]}>
-              {formatSignedVnd(t.amount)}
+            <Text style={[styles.amount, { color: transfer ? colors.textMuted : t.amount > 0 ? colors.primary : colors.expense }]}>
+              {transfer && !t.transferDirection ? formatVnd(t.amount) : formatSignedVnd(t.amount)}
             </Text>
 
             <View style={styles.rows}>
-              <Row label="Ví" value={t.walletName} />
+              {transfer ? (
+                <>
+                  <Row label="Từ ví" value={t.walletName} />
+                  <Row label="Đến ví" value={t.toWalletName ?? '—'} />
+                  {(t.fee ?? 0) > 0 && <Row label="Phí chuyển" value={formatVnd(t.fee ?? 0)} />}
+                </>
+              ) : (
+                <Row label="Ví" value={t.walletName} />
+              )}
               <Row label="Ngày" value={formatFullDate(t.date)} />
               <Row label="Ghi chú" value={t.note || '—'} />
-              <View style={[styles.row, styles.rowLast]}>
+              {!transfer && <View style={[styles.row, styles.rowLast]}>
                 <Text style={styles.rowLabel}>Nguồn</Text>
                 <View style={styles.sourceBadge}>
                   <Ionicons
@@ -73,7 +82,7 @@ export function TransactionQuickView({ transaction, onClose, onEdit, onDelete }:
                     {t.source === 'ocr' ? 'Quét hóa đơn' : 'Nhập tay'}
                   </Text>
                 </View>
-              </View>
+              </View>}
             </View>
 
             {t.receiptImageUrl && (
