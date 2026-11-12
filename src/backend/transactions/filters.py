@@ -11,7 +11,7 @@ class NumberInFilter(filters.BaseInFilter, filters.NumberFilter):
 
 class TransactionFilter(filters.FilterSet):
     kind = filters.ChoiceFilter(choices=Transaction.Kind.choices)
-    wallet = NumberInFilter(field_name="wallet_id")
+    wallet = NumberInFilter(method="filter_wallet")
     category = NumberInFilter(field_name="category_id")
     date_from = filters.DateFilter(field_name="date", lookup_expr="gte")
     date_to = filters.DateFilter(field_name="date", lookup_expr="lte")
@@ -26,6 +26,9 @@ class TransactionFilter(filters.FilterSet):
     def filter_search(self, queryset, _name, value):
         # Tìm trong ghi chú và tên danh mục ("ăn" ra cả giao dịch danh mục Ăn uống không ghi chú)
         return queryset.filter(Q(note__icontains=value) | Q(category__name__icontains=value))
+
+    def filter_wallet(self, queryset, _name, value):
+        return queryset.filter(Q(wallet_id__in=value) | Q(to_wallet_id__in=value)).distinct()
 
 
 class StableOrderingFilter(OrderingFilter):

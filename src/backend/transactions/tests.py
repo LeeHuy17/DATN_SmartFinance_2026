@@ -162,6 +162,87 @@ class WalletBalanceTests(TransactionTestBase):
         self.assertEqual(len(res.data), 6)
 
 
+class TransferTests(TransactionTestBase):
+    def setUp(self):
+        super().setUp()
+        self.destination = Wallet.objects.create(user=self.user, name="MoMo")
+
+    def _transfer(self, **payload):
+        return self.client.post(reverse("transaction-list"), {
+            "wallet": self.wallet.pk,
+            "to_wallet": self.destination.pk,
+            "amount": "100000",
+            "date": "2026-11-10",
+        } | payload)
+
+    def test_create_transfer_moves_balance_without_income_or_expense(self):
+        response = self._transfer(fee="5000", note="Nạp ví")
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+        self.assertEqual(response.data["kind"], "transfer")
+        self.assertIsNone(response.data["category"])
+        self.assertEqual(response.data["to_wallet_name"], "MoMo")
+        self.assertEqual(Wallet.objects.get(pk=self.wallet.pk).current_balance, Decimal("895000"))
+        self.assertEqual(Wallet.objects.get(pk=self.destination.pk).current_balance, Decimal("100000"))
+
+        self.assertEqual(Transaction.objects.filter(user=self.user).count(), 2)
+        history = self.client.get(reverse("transaction-list")).data
+        self.assertEqual(history["count"], 1)
+        summary = self.client.get(reverse("transaction-summary")).data
+        self.assertEqual(summary["income"], "0.00")
+        self.assertEqual(summary["expense"], "0.00")
+        overview = self.client.get(reverse("report_overview"), {"month": "2026-11"}).data
+        self.assertEqual(overview["income"], "0.00")
+        self.assertEqual(overview["expense"], "5000.00")
+
+    def test_transfer_requires_distinct_active_owned_wallets_and_sufficient_balance(self):
+        self.assertIn("to_wallet", self._transfer(to_wallet=self.wallet.pk).data)
+        archived = Wallet.objects.create(user=self.user, name="Ví cũ", is_archived=True)
+        self.assertIn("to_wallet", self._transfer(to_wallet=archived.pk).data)
+        self.assertIn("amount", self._transfer(amount="2000000").data)
+        self.assertIn("category", self._transfer(category=self.food.pk).data)
+
+    def test_transfer_can_overdraw_credit_source(self):
+        credit = Wallet.objects.create(user=self.user, name="Thẻ", kind=Wallet.Kind.CREDIT)
+        response = self._transfer(wallet=credit.pk, amount="2000000")
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.data)
+
+    def test_transfer_filter_matches_destination_and_kind(self):
+        self.assertEqual(self._transfer().status_code, status.HTTP_201_CREATED)
+        self.assertEqual(
+            self.client.get(reverse("transaction-list"), {"wallet": self.destination.pk}).data["count"],
+            1,
+        )
+        self.assertEqual(
+            self.client.get(reverse("transaction-list"), {"kind": "transfer"}).data["count"],
+            1,
+        )
+
+    def test_update_and_delete_transfer_keep_fee_and_both_wallets_linked(self):
+        created = self._transfer(fee="5000")
+        transfer_id = created.data["id"]
+        response = self.client.patch(reverse("transaction-detail", args=[transfer_id]), {
+            "amount": "150000", "fee": "3000", "to_wallet": self.destination.pk,
+        })
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.data)
+        self.assertEqual(Wallet.objects.get(pk=self.wallet.pk).current_balance, Decimal("847000"))
+        self.assertEqual(Wallet.objects.get(pk=self.destination.pk).current_balance, Decimal("150000"))
+        fee_item = Transaction.objects.get(transfer_parent_id=transfer_id)
+        self.assertEqual(fee_item.amount, Decimal("3000"))
+
+        response = self.client.delete(reverse("transaction-detail", args=[transfer_id]))
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertEqual(Wallet.objects.get(pk=self.wallet.pk).current_balance, Decimal("1000000"))
+        self.assertEqual(Wallet.objects.get(pk=self.destination.pk).current_balance, Decimal("0"))
+        self.assertFalse(Transaction.objects.filter(transfer_parent_id=transfer_id).exists())
+
+    def test_transfer_changes_total_only_for_excluded_destination_wallet(self):
+        self.destination.include_in_total = False
+        self.destination.save()
+        self.assertEqual(self._transfer().status_code, status.HTTP_201_CREATED)
+        summary = self.client.get(reverse("wallet-summary")).data
+        self.assertEqual(summary["total_balance"], "900000.00")
+
+
 class ProtectTests(TransactionTestBase):
     def test_delete_wallet_with_transactions_returns_409(self):
         self._tx()
@@ -224,7 +305,7 @@ class FilterPaginationTests(TransactionTestBase):
         self.assertEqual(self._list(search="PHỞ")["count"], 1)
 
     def test_invalid_filter_value_returns_400(self):
-        res = self.client.get(reverse("transaction-list"), {"kind": "transfer"})
+        res = self.client.get(reverse("transaction-list"), {"kind": "unknown"})
         self.assertEqual(res.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_ordering_by_amount(self):

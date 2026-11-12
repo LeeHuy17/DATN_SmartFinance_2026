@@ -2,7 +2,7 @@ from decimal import Decimal
 
 from django.conf import settings
 from django.db import models
-from django.db.models import DecimalField, Q, Sum, Value
+from django.db.models import DecimalField, OuterRef, Q, Subquery, Sum, Value
 from django.db.models.functions import Coalesce
 
 
@@ -12,7 +12,16 @@ def _zero():
 
 class WalletQuerySet(models.QuerySet):
     def with_balance(self):
-        """Tính thu/chi trong một câu SQL, tránh N+1 khi liệt kê nhiều ví."""
+        """Tính số dư trong một câu SQL, tránh N+1 khi liệt kê nhiều ví."""
+        from transactions.models import Transaction
+
+        incoming = (
+            Transaction.objects.filter(to_wallet_id=OuterRef("pk"), kind="transfer")
+            .order_by()
+            .values("to_wallet_id")
+            .annotate(total=Sum("amount"))
+            .values("total")[:1]
+        )
         return self.annotate(
             income_total=Coalesce(
                 Sum("transactions__amount", filter=Q(transactions__kind="income")), _zero()
@@ -20,6 +29,10 @@ class WalletQuerySet(models.QuerySet):
             expense_total=Coalesce(
                 Sum("transactions__amount", filter=Q(transactions__kind="expense")), _zero()
             ),
+            transfer_out_total=Coalesce(
+                Sum("transactions__amount", filter=Q(transactions__kind="transfer")), _zero()
+            ),
+            transfer_in_total=Coalesce(Subquery(incoming), _zero()),
         )
 
 
@@ -55,13 +68,20 @@ class Wallet(models.Model):
     def current_balance(self):
         if hasattr(self, "income_total"):
             income, expense = self.income_total, self.expense_total
+            transfer_out = self.transfer_out_total
+            transfer_in = self.transfer_in_total
         else:
             agg = self.transactions.aggregate(
                 income=Coalesce(Sum("amount", filter=Q(kind="income")), _zero()),
                 expense=Coalesce(Sum("amount", filter=Q(kind="expense")), _zero()),
+                transfer_out=Coalesce(Sum("amount", filter=Q(kind="transfer")), _zero()),
             )
+            incoming = self.received_transfers.filter(kind="transfer").aggregate(
+                total=Coalesce(Sum("amount"), _zero())
+            )["total"]
             income, expense = agg["income"], agg["expense"]
-        return self.initial_balance + income - expense
+            transfer_out, transfer_in = agg["transfer_out"], incoming
+        return self.initial_balance + income - expense - transfer_out + transfer_in
 
     def __str__(self):
         return self.name
